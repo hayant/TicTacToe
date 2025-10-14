@@ -24,4 +24,8 @@
       <ProjectReference Include="..\TicTacToe.Data\TicTacToe.Data.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <_ContentIncludedByDefault Remove="scripts\public\manifest.json" />
+    </ItemGroup>
+
 </Project>
