@@ -1,0 +1,24 @@
+.LoginForm {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+.LoginForm__username {
+    width: 350px;
+    padding: 10px;
+}
+.LoginForm__password {
+    width: 350px;
+    padding: 10px;
+}
+.LoginForm__error {
+    display: flex;
+    padding: 10px;
+    color: red;
+    height: 20px;
+}
+.LoginForm__submit {
+    width: 350px;
+    padding: 10px;
+}

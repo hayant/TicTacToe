@@ -9,9 +9,12 @@
     <ItemGroup>
       <Folder Include="scripts\" />
       <Folder Include="wwwroot\" />
+      <Folder Include="wwwroot\app\" />
+      <Folder Include="wwwroot\login\" />
     </ItemGroup>
 
     <ItemGroup>
+      <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.10" />
       <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.9" />
       <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.9">
         <PrivateAssets>all</PrivateAssets>

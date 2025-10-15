@@ -40,6 +40,8 @@ ScaffoldingReadMe.txt
 ~$*
 *~
 CodeCoverage/
+.idea/
+TicTacToe/wwwroot
 
 # MSBuild Binary and Structured Log
 *.binlog
@@ -52,3 +54,7 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+# node_modules
+TicTacToe/node_modules
+
