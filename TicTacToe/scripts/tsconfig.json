@@ -8,7 +8,9 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "outDir": "./dist"
+    "outDir": "./dist",
+    "sourceMap": true,
+    "sourceRoot": "http://localhost/src",
   },
   "include": ["src"]
 }

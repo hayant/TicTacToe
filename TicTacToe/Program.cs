@@ -1,4 +1,5 @@
 using System.Text;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -14,23 +15,17 @@ builder.Services.AddDbContext<TicTacToeDbContext>(options =>
             b => b.MigrationsAssembly("TicTacToe")));
 
 // Authentication
-// builder.Services.AddAuthentication("Bearer")
-//     .AddJwtBearer(options =>
-//     {
-//         options.TokenValidationParameters = new TokenValidationParameters()
-//         {
-//             ValidateIssuer = true,
-//             ValidateAudience = true,
-//             ValidateLifetime = true,
-//             ValidIssuer = "TicTacToe",
-//             ValidAudience = "TicTacToe",
-//             IssuerSigningKey = new SymmetricSecurityKey(
-//                 Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
-//         };
-//     });
-//
-// builder.Services.AddAuthorization();
-// builder.Services.AddControllers();
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.LoginPath = "/login";
+        options.AccessDeniedPath = "/login";
+        options.ExpireTimeSpan = TimeSpan.FromHours(1);
+        options.SlidingExpiration = true;
+    });
+
+builder.Services.AddAuthorization();
+builder.Services.AddControllers();
 
 var app = builder.Build();
 
@@ -40,16 +35,6 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<TicTacToeDbContext>();
     db.Database.Migrate();
 }
-
-//// app.MapGet("/", () => "Hello World!");
-// app.UseStaticFiles(new StaticFileOptions
-// {
-//     FileProvider = new PhysicalFileProvider(
-//         Path.Combine(Directory.GetCurrentDirectory(), "scripts/dist")),
-//     RequestPath = string.Empty
-// });
-
-// app.UseDefaultFiles();
 
 app.UseStaticFiles(new StaticFileOptions
 {
@@ -65,21 +50,18 @@ app.UseStaticFiles(new StaticFileOptions
     RequestPath = "/login"
 });
 
-// app.UseAuthentication();
-// app.UseAuthorization();
-// app.MapControllers();
+app.UseRouting();
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapControllers();
 
-// app.UseRouting();
-app.MapFallbackToFile("/app/{*path:nonfile}", "app/index.html");
-app.MapFallbackToFile("/app/index.html");
+app.MapGet("/", context =>
+{
+    context.Response.Redirect("/login");
+    return Task.CompletedTask;
+});
 
-// app.UseEndpoints(endpoints =>
-// {
-//     // endpoints.MapControllers();
-//     // fallback for React
-//     endpoints.MapFallbackToFile("/app/{*path:nonfile}", "app/index.html");
-// });
-
-// app.MapFallbackToFile("/app/index.html").RequireAuthorization();
+app.MapFallbackToFile("/login/{*path:nonfile}", "login/index.html");
+app.MapFallbackToFile("/app/{*path:nonfile}", "app/index.html").RequireAuthorization();
 
 app.Run();
