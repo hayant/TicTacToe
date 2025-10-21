@@ -1,0 +1,12 @@
+.MainView {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+.MainView__button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}

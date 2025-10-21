@@ -1,6 +1,7 @@
 import React, {useRef} from "react";
 import "./Styles/LoginForm.css";
 import {CSSTransition} from "react-transition-group";
+import {HttpHelpers} from "../Helpers/HttpHelpers";
 
 const LoginForm: React.FC = () => {
     const [username, setUsername] = React.useState("");
@@ -26,14 +27,10 @@ const LoginForm: React.FC = () => {
             Password: password,
         }
         
-        fetch("api/Login/login", { 
-            method: "POST",
-            body: JSON.stringify(loginData),
-            credentials: "include", // TODO: same-origin?
-            headers: { "Content-Type": "application/json" }
-        }).then(response => response.ok
-            ? window.location.href = "/app"
-            : setError("Incorrect username or password"));
+        HttpHelpers.makeRequest("api/Login/login", "POST", loginData)
+            .then(response => response.ok
+                ? window.location.href = "/app"
+                : setError("Incorrect username or password"));
     }
     
     return (

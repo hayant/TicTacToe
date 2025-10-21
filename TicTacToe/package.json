@@ -4,6 +4,9 @@
     "css-loader": "^7.1.2"
   },
   "dependencies": {
+    "@microsoft/signalr": "^9.0.6",
+    "bootstrap": "^5.3.8",
+    "react-bootstrap": "^2.10.10",
     "react-router-dom": "^7.9.4",
     "react-transition-group": "^4.4.5"
   }

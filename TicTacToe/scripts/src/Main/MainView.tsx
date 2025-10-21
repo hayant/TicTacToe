@@ -1,11 +1,9 @@
-import React, {useEffect, useRef} from "react";
-import App from "./App";
-import { CSSTransition } from "react-transition-group";
-
-// import "./Styles/LoginForm.css";
+import React, {useEffect, useRef, useState} from "react";
+import "./Styles/MainView.css";
+import GameView from "../GameView/GameView";
 
 const MainView: React.FC = () => {
-    const [showButton, setShowButton] = React.useState(false);
+    const [gamesStarted, setGamesStarted] = useState(false);
     
     const ref = useRef(null);
     
@@ -18,25 +16,24 @@ const MainView: React.FC = () => {
             window.location.href = "/";
         }) // window.location.href = "/")
     }
-
-    useEffect(() => {
-        setShowButton(true);
-    }, []);
     
     return (
-        <CSSTransition
-            in={showButton}
-            nodeRef={ref}
-            timeout={1000}
-            classNames="logout"
-            unmountOnExit
-            // onEnter={() => setShowButton(false)}
-            // onExited={() => setShowButton(true)}
-        >
-            <div>
-                <button type="button" onClick={handleLogout}>Logout</button>
+        !gamesStarted ? (
+            <div className="MainView">
+                <button
+                    className="MainView__button"
+                    type="button"
+                    onClick={() => setGamesStarted(true)}
+                >Start</button>
+                <button
+                    className="MainView__button"
+                    type="button"
+                    onClick={handleLogout}
+                >Logout</button>
             </div>
-        </CSSTransition>
+        ) : (
+            <GameView />
+        )
     )
 }
 

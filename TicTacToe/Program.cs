@@ -2,7 +2,7 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
+using TicTacToe.Backend.SignalR;
 using TicTacToe.Data;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -54,6 +54,7 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<GameHub>("/gameHub").RequireAuthorization();
 
 app.MapGet("/", context =>
 {

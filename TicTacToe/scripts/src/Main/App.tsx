@@ -2,6 +2,7 @@ import React, {useEffect, useRef, useState} from "react";
 // import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { CSSTransition } from "react-transition-group";
 import MainView from "./MainView";
+// import Example from "./TransitionTest";
 // import Spinner from "./Spinner";
 
 function App() {
@@ -30,17 +31,9 @@ function App() {
 
     return (
         isAuthenticated ? (
-            // <CSSTransition
-            //     in={true}
-            //     nodeRef={ref}
-            //     timeout={1000}
-            //     classNames="fade-slide"
-            //     unmountOnExit={true}
-            // >
-                <div>
-                    <MainView />
-                </div>
-            // </CSSTransition>
+            <div>
+                <MainView />
+            </div>
         ) : (
             window.location.href = "/login"
         )
