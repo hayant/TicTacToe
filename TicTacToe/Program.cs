@@ -4,6 +4,7 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.EntityFrameworkCore;
 using TicTacToe.Backend.SignalR;
 using TicTacToe.Data;
+using TicTacToe.Data.DataAccess;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +14,9 @@ builder.Services.AddDbContext<TicTacToeDbContext>(options =>
         builder.Configuration.GetConnectionString(
             "DefaultConnection"),
             b => b.MigrationsAssembly("TicTacToe")));
+
+// Services
+builder.Services.AddScoped<UserDataAccess>();
 
 // Authentication
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -26,6 +30,7 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
+builder.Services.AddSignalR();
 
 var app = builder.Build();
 

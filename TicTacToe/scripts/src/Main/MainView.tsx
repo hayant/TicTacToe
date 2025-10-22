@@ -3,7 +3,7 @@ import "./Styles/MainView.css";
 import GameView from "../GameView/GameView";
 
 const MainView: React.FC = () => {
-    const [gamesStarted, setGamesStarted] = useState(false);
+    const [gameStarted, setGameStarted] = useState(false);
     
     const ref = useRef(null);
     
@@ -18,12 +18,12 @@ const MainView: React.FC = () => {
     }
     
     return (
-        !gamesStarted ? (
+        !gameStarted ? (
             <div className="MainView">
                 <button
                     className="MainView__button"
                     type="button"
-                    onClick={() => setGamesStarted(true)}
+                    onClick={() => setGameStarted(true)}
                 >Start</button>
                 <button
                     className="MainView__button"

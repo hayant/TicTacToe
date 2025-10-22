@@ -1,20 +1,28 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TicTacToe.Backend.Helpers;
 using TicTacToe.Backend.Login.Models;
+using TicTacToe.Data.DataAccess;
+using TicTacToe.Data.Models;
 
 namespace TicTacToe.Backend.Login;
 
 [ApiController]
 [Route("api/[controller]")]
-public class LoginController : ControllerBase
+[Authorize]
+public class LoginController(UserDataAccess userDataAccess) : ControllerBase
 {
+    private readonly UserDataAccess userDataAccess = userDataAccess;
+    
     [HttpPost("login")]
+    [AllowAnonymous]
     public async Task<IActionResult> Login([FromBody] LoginModel request)
     {
-        // TODO: Replace this with real user validation (database, etc.)
-        if (request.Username != "Ana" || request.Password != "Hoo")
+        var user = userDataAccess.GetUser(request.Username);
+        if (user is null || !Cryptography.VerifyPassword(request.Password, user.PasswordHash,  user.PasswordSalt))
         {
             return Unauthorized(new { Message = "Invalid username or password" });
         }
@@ -55,7 +63,54 @@ public class LoginController : ControllerBase
         return Ok(new { Message = "Logged out successfully" });
     }
 
+    [HttpPost("register")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Register([FromBody] LoginModel request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Username)
+            || string.IsNullOrWhiteSpace(request.Password))
+        {
+            return BadRequest("Username or password cannot be empty");
+        }
+        
+        var user = userDataAccess.GetUser(request.Username);
+        
+        if (user is not null)
+        {
+            return BadRequest("Username already exists");
+        }
+        
+        var (hash, salt) = Cryptography.HashPassword(request.Password);
+        
+        var success = userDataAccess.CreateUser(new User
+        {
+            Username = request.Username,
+            PasswordHash = hash,
+            PasswordSalt = salt,
+            CreatedAt = DateTimeOffset.Now,
+            UpdatedAt = DateTimeOffset.Now,
+            Email = string.Empty,
+        });
+        
+        return success 
+            ? Ok(new { Message = "User created successfully" })
+            : BadRequest(new { Message = "User creation failed" });
+    }
+    
+    [HttpPost("update")]
+    public async Task<IActionResult> UpdatePassword([FromBody] LoginModel request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Username)
+            || string.IsNullOrWhiteSpace(request.Password))
+        {
+            return BadRequest("Username or password cannot be empty");
+        }
+
+        return BadRequest(new { Message = "Hello world!"} );
+    }
+    
     [HttpGet("me")]
+    [AllowAnonymous]
     public IActionResult Me()
     {
         if (User?.Identity?.IsAuthenticated ?? false)

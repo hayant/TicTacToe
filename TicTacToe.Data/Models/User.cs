@@ -15,6 +15,9 @@ public class User
     [MaxLength(255)]
     public string PasswordHash { get; init; } = string.Empty;
 
+    [MaxLength(255)]
+    public string PasswordSalt { get; init; } = string.Empty;
+    
     public DateTimeOffset CreatedAt { get; init; }
     
     public DateTimeOffset UpdatedAt { get; init; }

@@ -6,7 +6,9 @@ import {HttpHelpers} from "../Helpers/HttpHelpers";
 const LoginForm: React.FC = () => {
     const [username, setUsername] = React.useState("");
     const [password, setPassword] = React.useState("");
+    const [password2, setPassword2] = React.useState("");
     const [error, setError] = React.useState("");
+    const [loginForm, setLoginForm] = React.useState(true);
     
     const ref = useRef(null);
     
@@ -28,36 +30,89 @@ const LoginForm: React.FC = () => {
         }
         
         HttpHelpers.makeRequest("api/Login/login", "POST", loginData)
-            .then(response => response.ok
-                ? window.location.href = "/app"
-                : setError("Incorrect username or password"));
+            .then(response => {
+                if (response.ok) {
+                    window.location.href = "/app";
+                } else {
+                    response.json().then(json => setError(json["message"]));
+                }
+            });
+    }
+
+    const handleRegister = () => {
+        if (username.length === 0) {
+            setError("Username cannot be empty");
+            return;
+        }
+        else if (password.length === 0 || password2.length === 0) {
+            setError("Password cannot be empty");
+            return;
+        }
+        else if (password !== password2) {
+            setError("Passwords do not match");
+            return;
+        }
+        
+        setError("");
+
+        const loginData : ILoginData = {
+            Username: username,
+            Password: password,
+        };
+
+        HttpHelpers.makeRequest("api/Login/register", "POST", loginData)
+            .then(response => {
+                if (response.ok) {
+                    window.location.href = "/app";
+                } else {
+                    response.text().then(text => setError(text));
+                }
+            });   
     }
     
     return (
-        <CSSTransition
-            in={true}
-            nodeRef={ref}
-            timeout={1000}
-            classNames="fade-in"
-            unmountOnExit={true}
-        >
-            <div className="LoginForm" ref={ref}>
-                <input
-                    className="LoginForm__username"
-                    type="username"
-                    placeholder="Username"
-                    onChange={(e) => setUsername(e.target.value)}
-                />
-                <input
-                    className="LoginForm__password"
-                    type="password"
-                    placeholder="Password"
-                    onChange={(e) => setPassword(e.target.value)}
-                />
-            <div className="LoginForm__error">{error}</div>
-            <button type="button" onClick={handleSubmit}>Login</button>
-            </div>
-        </CSSTransition>);
+        loginForm ?
+                (<div className="LoginForm" ref={ref}>
+                    <input
+                        className="LoginForm__username"
+                        type="username"
+                        placeholder="Username"
+                        onChange={(e) => setUsername(e.target.value)}
+                    />
+                    <input
+                        className="LoginForm__password"
+                        type="password"
+                        placeholder="Password"
+                        onChange={(e) => setPassword(e.target.value)}
+                    />
+                    <div className="LoginForm__error">{error}</div>
+                    <button type="button" onClick={handleSubmit}>Login</button>
+                    <button type="button" onClick={() => setLoginForm(false)}>Register</button>
+                </div>) : (
+                <div className="LoginForm" ref={ref}>
+                    <input
+                        className="LoginForm__username"
+                        type="username"
+                        placeholder="Username"
+                        onChange={(e) => setUsername(e.target.value)}
+                    />
+                    <input
+                        className="LoginForm__password"
+                        type="password"
+                        placeholder="Password"
+                        onChange={(e) => setPassword(e.target.value)}
+                    />
+                    <input
+                        className="LoginForm__password"
+                        type="password"
+                        placeholder="Re-enter password"
+                        onChange={(e) => setPassword2(e.target.value)}
+                    />
+                    <div className="LoginForm__error">{error}</div>
+                    <button type="button" onClick={handleRegister}>Submit</button>
+                    <button type="button" onClick={() => setLoginForm(true)}>Back</button>
+                </div>   
+            ));
 };
 
 interface ILoginData {

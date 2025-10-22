@@ -36,7 +36,7 @@ export default function GameView() {
     return (
         <div style={{ padding: 20 }}>
             <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", maxWidth: 900, margin: "0px 0px 0px 0px" }}>
-                <h1 style={{ margin: 0 }}>TicTacToe-like 10×10</h1>
+                <h1 style={{ margin: 0 }}>TicTacToe</h1>
                 <div>
                     <strong>Turn:</strong> {turn}{" "}
                     <button onClick={handleReset} style={{ marginLeft: 12 }}>Reset</button>
