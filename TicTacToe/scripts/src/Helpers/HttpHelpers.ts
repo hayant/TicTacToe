@@ -4,7 +4,7 @@ export class HttpHelpers {
     static makeRequest= (
         uri: string,
         method: "POST" | "GET" | "PUT" | "PATCH" | "DELETE",
-        body: any,
+        body: any = {},
         credentials: RequestCredentials = "include",
         headers: HeadersInit = { "Content-Type": "application/json" }
     ): Promise<Response> => {
