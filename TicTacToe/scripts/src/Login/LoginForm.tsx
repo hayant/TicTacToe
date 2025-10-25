@@ -1,14 +1,16 @@
-import React, {useRef} from "react";
+import React, {useCallback, useRef} from "react";
 import "./Styles/LoginForm.css";
 import {CSSTransition} from "react-transition-group";
 import {HttpHelpers} from "../Helpers/HttpHelpers";
+import {Navigate} from "react-router-dom";
 
-const LoginForm: React.FC = () => {
+const LoginForm = () => {
     const [username, setUsername] = React.useState("");
     const [password, setPassword] = React.useState("");
     const [password2, setPassword2] = React.useState("");
     const [error, setError] = React.useState("");
     const [loginForm, setLoginForm] = React.useState(true);
+    const [loadApp, setLoadApp] = React.useState(false);
     
     const ref = useRef(null);
     
@@ -63,12 +65,19 @@ const LoginForm: React.FC = () => {
         HttpHelpers.makeRequest("api/Login/register", "POST", loginData)
             .then(response => {
                 if (response.ok) {
-                    window.location.href = "/app";
+                    // window.location.href = "/app";
+                    setLoadApp(true);
                 } else {
                     response.text().then(text => setError(text));
                 }
             });   
     }
+
+    useCallback(() => {
+        if (loadApp) {
+            return <Navigate to={"/app"}></Navigate>
+        }
+    }, [loadApp]);
     
     return (
         loginForm ?
