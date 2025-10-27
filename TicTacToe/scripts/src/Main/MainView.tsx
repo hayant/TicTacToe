@@ -1,25 +1,20 @@
 import React, {useEffect, useRef, useState} from "react";
 import "./Styles/MainView.css";
 import GameView from "../GameView/GameView";
-import {Navigate, redirect, useNavigate} from "react-router-dom";
+import {Navigate, redirect, useNavigate} from "react-router";
 import {HttpHelpers} from "../Helpers/HttpHelpers";
+import {Authorization} from "../Helpers/Authorization";
 
-const MainView: React.FC = () => {
-    const ref = useRef(null);
+function MainView(){
     const navigate = useNavigate();
+    const ref = useRef(null);
 
+    Authorization.checkAuthentication();
+    
     const handleLogout = () => {
         HttpHelpers.makeRequest("api/Login/logout", "POST").then(result => {
             navigate("/");
         })
-        
-        // fetch("api/Login/logout", {
-        //     method: "POST",
-        //     credentials: "include", // TODO: same-origin?
-        //     headers: { "Content-Type": "application/json" }
-        // }).then(result => {
-        //     window.location.href = "/";
-        // }) // window.location.href = "/")
     }
     
     const handleGameStart = () => {
@@ -27,7 +22,7 @@ const MainView: React.FC = () => {
     }
     
     return (
-        <div className="MainView">
+        <div className="MainView" ref={ref}>
             <button
                 className="MainView__button"
                 type="button"

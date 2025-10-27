@@ -1,5 +1,8 @@
-import React, { useCallback, useState } from "react";
+import React, {useCallback, useEffect, useState} from "react";
 import Grid, { CellValue } from "../Grid/Grid";
+import {HttpHelpers} from "../Helpers/HttpHelpers";
+import {useNavigate} from "react-router";
+import {Authorization} from "../Helpers/Authorization";
 
 const SIZE = 20;
 
@@ -12,7 +15,9 @@ function createEmpty(size = SIZE): CellValue[][] {
 export default function GameView() {
     const [board, setBoard] = useState<CellValue[][]>(() => createEmpty());
     const [turn, setTurn] = useState<CellValue>("X"); // X or O
-
+    
+    Authorization.checkAuthentication();
+    
     const handleCellClick = useCallback((row: number, col: number) => {
         setBoard((prev) => {
             // ignore if already filled

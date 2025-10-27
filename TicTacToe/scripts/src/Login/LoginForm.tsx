@@ -1,8 +1,7 @@
 import React, {useCallback, useRef} from "react";
 import "./Styles/LoginForm.css";
-import {CSSTransition} from "react-transition-group";
 import {HttpHelpers} from "../Helpers/HttpHelpers";
-import {Navigate} from "react-router-dom";
+import {Navigate} from "react-router";
 
 const LoginForm = () => {
     const [username, setUsername] = React.useState("");
