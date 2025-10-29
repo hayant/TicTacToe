@@ -1,7 +1,6 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import LoginForm from "./LoginForm";
-import "./Styles/w3.css";
 import {
     Container,
     CssBaseline,

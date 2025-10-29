@@ -3,7 +3,7 @@ import {useNavigate} from "react-router";
 import {HttpHelpers} from "./HttpHelpers";
 
 export class Authorization {
-    static checkAuthentication = (setUser: React.Dispatch<React.SetStateAction<string>>) => {
+    static checkAuthentication = (setUser: React.Dispatch<React.SetStateAction<string>> | undefined = undefined) => {
         const navigate = useNavigate();
 
         useEffect(() => {
@@ -11,7 +11,9 @@ export class Authorization {
                 if (!response.ok) {
                     navigate("/");
                 }
-                response.json().then(json => setUser(json["username"]));
+                if (setUser) {
+                    response.json().then(json => setUser(json["username"]));
+                }
             });
         }, []);
     }
