@@ -1,17 +1,15 @@
-import React, {useCallback, useRef} from "react";
-import "./Styles/LoginForm.css";
+import React, { useCallback } from "react";
+import "./Styles/w3.css";
 import {HttpHelpers} from "../Helpers/HttpHelpers";
 import {Navigate} from "react-router";
+import { Button, TextField, Box, Stack, Typography, Paper } from "@mui/material"
 
 const LoginForm = () => {
     const [username, setUsername] = React.useState("");
     const [password, setPassword] = React.useState("");
     const [password2, setPassword2] = React.useState("");
     const [error, setError] = React.useState("");
-    const [loginForm, setLoginForm] = React.useState(true);
-    const [loadApp, setLoadApp] = React.useState(false);
-    
-    const ref = useRef(null);
+    const [showLoginForm, setShowLoginForm] = React.useState(true);
     
     const handleSubmit = () => {
         if (username.length === 0) {
@@ -64,63 +62,178 @@ const LoginForm = () => {
         HttpHelpers.makeRequest("api/Login/register", "POST", loginData)
             .then(response => {
                 if (response.ok) {
-                    // window.location.href = "/app";
-                    setLoadApp(true);
+                    setShowLoginForm(true);
                 } else {
                     response.text().then(text => setError(text));
                 }
             });   
     }
-
-    useCallback(() => {
-        if (loadApp) {
-            return <Navigate to={"/app"}></Navigate>
-        }
-    }, [loadApp]);
     
-    return (
-        loginForm ?
-                (<div className="LoginForm" ref={ref}>
-                    <input
-                        className="LoginForm__username"
-                        type="username"
-                        placeholder="Username"
-                        onChange={(e) => setUsername(e.target.value)}
-                    />
-                    <input
-                        className="LoginForm__password"
-                        type="password"
-                        placeholder="Password"
-                        onChange={(e) => setPassword(e.target.value)}
-                    />
-                    <div className="LoginForm__error">{error}</div>
-                    <button type="button" onClick={handleSubmit}>Login</button>
-                    <button type="button" onClick={() => setLoginForm(false)}>Register</button>
-                </div>) : (
-                <div className="LoginForm" ref={ref}>
-                    <input
-                        className="LoginForm__username"
-                        type="username"
-                        placeholder="Username"
-                        onChange={(e) => setUsername(e.target.value)}
-                    />
-                    <input
-                        className="LoginForm__password"
-                        type="password"
-                        placeholder="Password"
-                        onChange={(e) => setPassword(e.target.value)}
-                    />
-                    <input
-                        className="LoginForm__password"
-                        type="password"
-                        placeholder="Re-enter password"
-                        onChange={(e) => setPassword2(e.target.value)}
-                    />
-                    <div className="LoginForm__error">{error}</div>
-                    <button type="button" onClick={handleRegister}>Submit</button>
-                    <button type="button" onClick={() => setLoginForm(true)}>Back</button>
-                </div>   
-            ));
+    const loginForm = () => {
+        return (
+            <Box
+                sx={{
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    minHeight: "100vh",
+                    backgroundColor: "#f5f5f5",
+                }}
+            >
+                <div>
+                    <Paper
+                        elevation={3}
+                        sx={{
+                            p: 4,
+                            width: "100%",
+                            maxWidth: 400,
+                            borderRadius: 3,
+                        }}
+                    >
+                        <h1 style={{fontFamily: "fantasy", fontSize: "42px"}}>Tic Tac Toe</h1>
+                    </Paper>
+                    <Paper
+                        elevation={3}
+                        sx={{
+                            p: 4,
+                            width: "100%",
+                            maxWidth: 400,
+                            borderRadius: 3,
+                        }}
+                    >
+                        <Typography variant="h5" align="center" gutterBottom>
+                            Login
+                        </Typography>
+                        <Stack spacing={2}>
+                            <TextField
+                                label="Username"
+                                variant="outlined"
+                                type="username"
+                                fullWidth
+                                required
+                                onChange={(e) => setUsername(e.target.value)}
+                            />
+                            <TextField
+                                label="Password"
+                                variant="outlined"
+                                type="password"
+                                fullWidth
+                                required
+                                onChange={(e) => setPassword(e.target.value)}
+                            />
+
+                            <Button
+                                type="submit"
+                                variant="contained"
+                                size="large"
+                                fullWidth
+                                onClick={handleSubmit}
+                            >
+                                Log In
+                            </Button>
+
+                            <Button
+                                variant="outlined"
+                                size="large"
+                                fullWidth
+                                onClick={() => setShowLoginForm(false)}
+                            >
+                                Sign Up
+                            </Button>
+                        </Stack>
+                    </Paper>
+                </div>
+            </Box>
+        );
+    }
+
+    const registerForm = () => {
+        return (
+            <Box
+                sx={{
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    minHeight: "100vh",
+                    backgroundColor: "#f5f5f5",
+                }}
+            >
+                <div>
+                    <Paper
+                        elevation={3}
+                        sx={{
+                            p: 4,
+                            width: "100%",
+                            maxWidth: 400,
+                            borderRadius: 3,
+                        }}
+                    >
+                        <h1 style={{fontFamily: "fantasy", fontSize: "42px"}}>Tic Tac Toe</h1>
+                    </Paper>
+                    <Paper
+                        elevation={3}
+                        sx={{
+                            p: 4,
+                            width: "100%",
+                            maxWidth: 400,
+                            borderRadius: 3,
+                        }}
+                    >
+                        <Typography variant="h5" align="center" gutterBottom>
+                            Sign Up
+                        </Typography>
+
+                        <Stack spacing={2}>
+                            <TextField
+                                label="Username"
+                                variant="outlined"
+                                type="username"
+                                fullWidth
+                                required
+                                onChange={(e) => setUsername(e.target.value)}
+                            />
+                            <TextField
+                                label="Password"
+                                variant="outlined"
+                                type="password"
+                                fullWidth
+                                required
+                                onChange={(e) => setPassword(e.target.value)}
+                            />
+                            <TextField
+                                label="Re-enter password"
+                                variant="outlined"
+                                type="password"
+                                fullWidth
+                                required
+                                onChange={(e) => setPassword2(e.target.value)}
+                            />
+                            <Button
+                                type="submit"
+                                variant="contained"
+                                size="large"
+                                fullWidth
+                                onClick={handleRegister}
+                            >
+                                Sign Up
+                            </Button>
+
+                            <Button
+                                variant="outlined"
+                                size="large"
+                                fullWidth
+                                onClick={() => setShowLoginForm(true)}
+                            >
+                                Back to Login
+                            </Button>
+                        </Stack>
+                    </Paper>
+                </div>
+            </Box>
+        );
+    }
+    
+    return showLoginForm ? (loginForm()) : (registerForm());
 };
 
 interface ILoginData {

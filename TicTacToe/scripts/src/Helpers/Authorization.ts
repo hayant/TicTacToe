@@ -1,9 +1,9 @@
+import React, {useEffect, useRef, useState} from "react";
 import {useNavigate} from "react-router";
-import {useEffect, useRef} from "react";
 import {HttpHelpers} from "./HttpHelpers";
 
 export class Authorization {
-    static checkAuthentication = () => {
+    static checkAuthentication = (setUser: React.Dispatch<React.SetStateAction<string>>) => {
         const navigate = useNavigate();
 
         useEffect(() => {
@@ -11,6 +11,7 @@ export class Authorization {
                 if (!response.ok) {
                     navigate("/");
                 }
+                response.json().then(json => setUser(json["username"]));
             });
         }, []);
     }
