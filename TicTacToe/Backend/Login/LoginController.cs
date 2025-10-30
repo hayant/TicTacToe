@@ -109,9 +109,9 @@ public class LoginController(UserDataAccess userDataAccess) : ControllerBase
         return BadRequest(new { Message = "Hello world!"} );
     }
     
-    [HttpGet("me")]
+    [HttpPost("me")]
     [AllowAnonymous]
-    public IActionResult Me()
+    public IActionResult Me([FromBody] string dateTime)
     {
         if (User?.Identity?.IsAuthenticated ?? false)
         {
@@ -121,7 +121,7 @@ public class LoginController(UserDataAccess userDataAccess) : ControllerBase
                 Username = User.Identity!.Name
             });
         }
-
+    
         return Unauthorized(new { Authenticated = false });
     }
 }

@@ -7,7 +7,7 @@ export class Authorization {
         const navigate = useNavigate();
 
         useEffect(() => {
-            HttpHelpers.makeRequest("api/Login/me", "GET").then(response => {
+            HttpHelpers.makeRequest(`/api/Login/me`, "POST", (new Date()).toDateString()).then(response => {
                 if (!response.ok) {
                     navigate("/");
                 }

@@ -25,8 +25,6 @@ if (container) {
   root.render(
       <ThemeProvider theme={theme}>
           <CssBaseline />
-          <Container style={{ width: 400, alignContent: "center" }}>
-              <App />
-          </Container>
+          <App />
       </ThemeProvider>);
 }
