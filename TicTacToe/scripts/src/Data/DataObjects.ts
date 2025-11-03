@@ -1,3 +1,4 @@
 import { components } from "./Types/api";
 
-type LoginModel = components["schemas"]["LoginModel"];
+export type LoginModel = components["schemas"]["LoginModel"];
+export type AuthenticationResponseModel = components["schemas"]["AuthenticationResponseModel"];

@@ -183,7 +183,11 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "text/plain": components["schemas"]["AuthenticationResponseModel"];
+                        "application/json": components["schemas"]["AuthenticationResponseModel"];
+                        "text/json": components["schemas"]["AuthenticationResponseModel"];
+                    };
                 };
             };
         };
@@ -197,6 +201,10 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AuthenticationResponseModel: {
+            isAuthenticated?: boolean;
+            username?: string | null;
+        };
         LoginModel: {
             username?: string | null;
             password?: string | null;

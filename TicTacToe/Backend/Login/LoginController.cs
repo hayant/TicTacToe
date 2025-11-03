@@ -111,17 +111,17 @@ public class LoginController(UserDataAccess userDataAccess) : ControllerBase
     
     [HttpPost("me")]
     [AllowAnonymous]
-    public IActionResult Me([FromBody] string dateTime)
+    public ActionResult<AuthenticationResponseModel> Me([FromBody] string dateTime)
     {
         if (User?.Identity?.IsAuthenticated ?? false)
         {
-            return Ok(new
+            return Ok(new AuthenticationResponseModel
             {
-                Authenticated = true,
+                IsAuthenticated = true,
                 Username = User.Identity!.Name
             });
         }
     
-        return Unauthorized(new { Authenticated = false });
+        return Unauthorized(new AuthenticationResponseModel { IsAuthenticated = false });
     }
 }

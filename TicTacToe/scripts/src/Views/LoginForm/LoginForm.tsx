@@ -1,7 +1,8 @@
 import React, { useCallback } from "react";
 import {HttpHelpers} from "../../Helpers/HttpHelpers";
 import {Navigate} from "react-router";
-import { Button, TextField, Box, Stack, Typography, Paper } from "@mui/material"
+import { Button, TextField, Box, Stack, Typography, Paper } from "@mui/material";
+import {LoginModel} from "../../Data/DataObjects";
 
 const LoginForm = () => {
     const [username, setUsername] = React.useState("");
@@ -22,19 +23,14 @@ const LoginForm = () => {
         
         setError("");
         
-        const loginData : ILoginData = {
-            Username: username,
-            Password: password,
+        const loginData : LoginModel = {
+            username: username,
+            password: password,
         }
         
         HttpHelpers.makeRequest("api/Login/login", "POST", loginData)
-            .then(response => {
-                if (response.ok) {
-                    window.location.href = "/app";
-                } else {
-                    response.json().then(json => setError(json["message"]));
-                }
-            });
+            .then(() => window.location.href = "/app")
+            .catch(err => setError(err.message));
     }
 
     const handleRegister = () => {
@@ -53,19 +49,14 @@ const LoginForm = () => {
         
         setError("");
 
-        const loginData : ILoginData = {
-            Username: username,
-            Password: password,
+        const loginData : LoginModel= {
+            username: username,
+            password: password,
         };
 
         HttpHelpers.makeRequest("api/Login/register", "POST", loginData)
-            .then(response => {
-                if (response.ok) {
-                    setShowLoginForm(true);
-                } else {
-                    response.text().then(text => setError(text));
-                }
-            });   
+            .then(response => setShowLoginForm(true))
+            .catch(err => setError(err.message));
     }
     
     const loginForm = () => {
@@ -120,7 +111,18 @@ const LoginForm = () => {
                                 required
                                 onChange={(e) => setPassword(e.target.value)}
                             />
-
+                            <Typography
+                                align="center" 
+                                gutterBottom
+                                sx={{
+                                    minHeight: 40,
+                                    width: "100%",
+                                    fontSize: "80%",
+                                    color: "#f00",
+                                }}
+                            >
+                                {error}
+                            </Typography>
                             <Button
                                 type="submit"
                                 variant="contained"
@@ -234,10 +236,5 @@ const LoginForm = () => {
     
     return showLoginForm ? (loginForm()) : (registerForm());
 };
-
-interface ILoginData {
-    Username: string;
-    Password: string;
-}
 
 export default LoginForm;
