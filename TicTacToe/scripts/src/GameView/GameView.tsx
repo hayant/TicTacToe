@@ -1,5 +1,5 @@
 import React, {useCallback, useState} from "react";
-import Grid, { CellValue } from "../Grid/Grid";
+import Grid, { CellValue } from "../Grid/GameGrid";
 import {Authorization} from "../Helpers/Authorization";
 import {Container, AppBar, Box, Typography, Stack, Toolbar, Button} from "@mui/material"
 import {useNavigate} from "react-router";
@@ -7,14 +7,14 @@ import {useNavigate} from "react-router";
 const SIZE = 20;
 
 function createEmpty(size = SIZE): CellValue[][] {
-    return Array.from({ length: size }, () =>
-        Array.from({ length: size }, () => null)
+    return Array.from({ length: size }, ():CellValue[] =>
+        Array.from({ length: size }, (): CellValue => ({ mark: null, latest: false }))
     );
 }
 
 export default function GameView() {
     const [board, setBoard] = useState<CellValue[][]>(() => createEmpty());
-    const [turn, setTurn] = useState<CellValue>("X"); // X or O
+    const [turn, setTurn] = useState<CellValue>({ mark: "X", latest: true}); // X or O
     const [turnCount, setTurnCount] = useState(1);
     const [gameTime, setGameTime] = useState("00:00:00");
     const [timer, setTimer] = useState(0);
@@ -22,28 +22,32 @@ export default function GameView() {
     const navigate = useNavigate();
     
     Authorization.checkAuthentication();
-    
+
+    const checkForVictory = (next: CellValue[][], row: number, col: number): CellValue[][] => {
+        return next; // TODO
+    }
+
     const handleCellClick = useCallback((row: number, col: number) => {
         setBoard((prev) => {
-            // ignore if already filled
-            if (prev[row][col] !== null) {
+            if (prev[row][col].mark !== null) {
                 return prev;
             }
             
-            // handle next move
-            const next = prev.map((r) => r.slice());
-            next[row][col] = turn;
-            setTurn((t) => (t === "X" ? "O" : "X"));
-            if (turn === "O") {
+            let next = prev.map((r) => r.map(c => ({ mark: c.mark, latest: false })));
+            next[row][col] = { mark: turn.mark, latest: true };
+            setTurn((t) => (t.mark === "X" ? {mark: "O", latest: true} : {mark: "X", latest: true}));
+            if (turn.mark === "O") {
                 setTurnCount((count) => count + 1);
             }
+            
+            // next = checkForVictory(next, row, col);
             return next;
         });
     }, [turn]);
 
     const handleReset = () => {
         setBoard(createEmpty());
-        setTurn("X");
+        setTurn({mark: "X", latest: true});
     };
 
     const handleQuit = () => {
@@ -75,7 +79,7 @@ export default function GameView() {
                                     padding: "2px",
                                 }}
                             >
-                                <strong>Turn {turnCount}:</strong> {turn}
+                                <strong>Turn {turnCount}:</strong> {turn.mark}
                             </Typography>
                             <Typography
                                 sx={{
@@ -91,9 +95,6 @@ export default function GameView() {
                         <Button onClick={handleQuit} color="inherit">
                             Quit
                         </Button>
-                        {/*<Button color="inherit">Settings</Button>*/}
-                        {/*<Button color="inherit">Reset</Button>*/}
-                        {/*<Button color="inherit">Exit</Button>*/}
                     </Toolbar>
                 </AppBar>
                 <Grid size={SIZE} values={board} onCellClick={handleCellClick} />
