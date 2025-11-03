@@ -1,8 +1,10 @@
 import React, {useCallback, useState} from "react";
-import Grid, { CellValue } from "../Grid/GameGrid";
-import {Authorization} from "../Helpers/Authorization";
+import Grid from "./GameGrid";
+import {Authorization} from "../../Helpers/Authorization";
 import {Container, AppBar, Box, Typography, Stack, Toolbar, Button} from "@mui/material"
 import {useNavigate} from "react-router";
+import {HttpHelpers} from "../../Helpers/HttpHelpers";
+import {CellValue} from "../../Data/CellValue";
 
 const SIZE = 20;
 
@@ -35,6 +37,10 @@ export default function GameView() {
             
             let next = prev.map((r) => r.map(c => ({ mark: c.mark, latest: false })));
             next[row][col] = { mark: turn.mark, latest: true };
+            
+            // Send to backend.
+            // HttpHelpers.makeRequest("/api/Game/SetTurn", "POST", )
+            
             setTurn((t) => (t.mark === "X" ? {mark: "O", latest: true} : {mark: "X", latest: true}));
             if (turn.mark === "O") {
                 setTurnCount((count) => count + 1);

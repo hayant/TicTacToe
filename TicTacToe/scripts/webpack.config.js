@@ -3,7 +3,7 @@ const HtmlWebpackPlugin = require("html-webpack-plugin");
 
 module.exports = [
     {
-        entry: "./src/Main/index.tsx",
+        entry: "./src/Views/MainMenu/index.tsx",
         mode: "development",
         output: {
             filename: "bundle.js",
@@ -30,7 +30,7 @@ module.exports = [
         },
         plugins: [
             new HtmlWebpackPlugin({
-                template: "src/Main/index.html",
+                template: "src/Views/MainMenu/index.html",
             }),
         ],
         devServer: {
@@ -40,7 +40,7 @@ module.exports = [
         },
     },
     {
-        entry: "./src/Login/index.tsx",
+        entry: "./src/Views/LoginForm/index.tsx",
         mode: "development",
         output: {
             filename: "bundle.js",
@@ -67,7 +67,7 @@ module.exports = [
         },
         plugins: [
             new HtmlWebpackPlugin({
-                template: "src/Login/index.html",
+                template: "src/Views/LoginForm/index.html",
             }),
         ],
         devServer: {

@@ -8,6 +8,7 @@
 
     <ItemGroup>
       <Folder Include="scripts\" />
+      <Folder Include="scripts\src\Views\" />
       <Folder Include="wwwroot\" />
       <Folder Include="wwwroot\app\" />
       <Folder Include="wwwroot\login\" />
@@ -21,6 +22,7 @@
         <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       </PackageReference>
       <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.9" />
+      <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.6" />
     </ItemGroup>
 
     <ItemGroup>

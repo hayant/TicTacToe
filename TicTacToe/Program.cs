@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using TicTacToe.Backend.SignalR;
 using TicTacToe.Data;
 using TicTacToe.Data.DataAccess;
-
+using Microsoft.OpenApi.Models;
 var builder = WebApplication.CreateBuilder(args);
 
 // DbContext
@@ -30,6 +30,8 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 builder.Services.AddSignalR();
 
 var app = builder.Build();
@@ -58,6 +60,14 @@ app.UseStaticFiles(new StaticFileOptions
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.UseSwagger();
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "TicTacToe API v1");
+    c.RoutePrefix = "swagger"; // optional
+});
+
 app.MapControllers();
 app.MapHub<GameHub>("/gameHub").RequireAuthorization();
 

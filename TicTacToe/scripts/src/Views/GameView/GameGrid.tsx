@@ -1,13 +1,9 @@
 import React from "react";
 import "./Styles/Grid.css";
 import { Box, Grid, Button, Typography } from "@mui/material";
+import {CellValue} from "../../Data/CellValue";
 
 const cellSize = 30;
-
-export type CellValue = {
-    mark: null | "X" | "O";
-    latest: boolean;
-}
 
 type CellProps = {
     row: number;

@@ -1,11 +1,11 @@
 import React, {useEffect, useRef, useState} from "react";
 import GameView from "../GameView/GameView";
 import {Navigate, redirect, useNavigate} from "react-router";
-import {HttpHelpers} from "../Helpers/HttpHelpers";
-import {Authorization} from "../Helpers/Authorization";
+import {HttpHelpers} from "../../Helpers/HttpHelpers";
+import {Authorization} from "../../Helpers/Authorization";
 import {Box, Button, Paper, Stack, TextField, Typography, Slider, Container} from "@mui/material";
 
-function MainView(){
+function MainMenu(){
     const [user, setUser] = useState<string>("");
     
     const navigate = useNavigate();
@@ -123,4 +123,4 @@ function MainView(){
     return mainMenu();
 }
 
-export default MainView;
+export default MainMenu;
