@@ -24,7 +24,7 @@ public class LoginController(UserDataAccess userDataAccess) : ControllerBase
         var user = userDataAccess.GetUser(request.Username);
         if (user is null || !Cryptography.VerifyPassword(request.Password, user.PasswordHash,  user.PasswordSalt))
         {
-            return Unauthorized(new { Message = "Invalid username or password" });
+            return Unauthorized("Invalid username or password");
         }
         
         // Create user claims (you can add roles or other info here)
