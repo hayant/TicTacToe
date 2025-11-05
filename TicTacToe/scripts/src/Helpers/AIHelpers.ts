@@ -40,6 +40,8 @@ export function findBestMove(board: Board, maxDepth = 3, range = 2): Move {
             bestScore = score;
             bestMove = mv;
         }
+        // For debugging...
+        // console.log(`Move (${mv.row}, ${mv.col}) has score ${score}`);
     }
 
     return bestMove;
@@ -95,8 +97,8 @@ function boardHash(board: Board): string {
 
 function alphabeta(board: Board, depth: number, alpha: number, beta: number, maximizing: boolean): number {
     const winner = checkWinner(board);
-    if (winner === "O") return MAX_SCORE;
-    if (winner === "X") return -MAX_SCORE;
+    if (winner === "O") return MAX_SCORE + depth; // prefer faster wins
+    if (winner === "X") return -MAX_SCORE - depth; // prefer slower losses
     if (depth === 0) return evaluate(board);
 
     const moves = generateCandidates(board, 2);

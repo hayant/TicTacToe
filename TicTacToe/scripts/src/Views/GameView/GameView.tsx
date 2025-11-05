@@ -22,7 +22,7 @@ export default function GameView() {
     const [gameTime, setGameTime] = useState("00:00:00");
     const [timer, setTimer] = useState(0);
     const [error, setError] = useState<string | null>(null);
-
+    const [gameOver, setGameOver] = useState(false);
     const navigate = useNavigate();
     const singlePlayerGame = true;
     
@@ -79,45 +79,23 @@ export default function GameView() {
     }
 
     const handleCellClick = useCallback(async (row: number, col: number) => {
-        setError(null);
-
-        if (board[row][col].mark !== null) {
+        if (gameOver || board[row][col].mark !== null) {
             return;
         }
-
+        
+        setError(null);
+        
         let next = board.map((r) => r.map(c => ({ mark: c.mark, latest: false })));
         next[row][col] = { mark: turn.mark, latest: true };
 
         let victory = false;
         [next, victory] = checkForVictory(next, row, col);
-
-        // if (true) {
-        //     next = next.map((r) => r.map(c => ({ mark: c.mark, latest: false })));
-        //     const move = findBestMove(next);
-        //
-        //     next[move?.row ?? 0][move?.col ?? 0] = { mark: "O", latest: true };
-        //
-        //     // Check for victory.
-        //     next = checkForVictory(next, row, col);
-        // }
-        // else {
-        //     setTurn((t) => (t.mark === "X" ? {mark: "O", latest: true} : {mark: "X", latest: true}));
-        // }
-        //
-        // if (turn.mark === "O") {
-        //     setTurnCount((count) => count + 1);
-        // }
         
-        // if (!singlePlayerGame) {
-        //     setTurn((t) => (t.mark === "X" ? {mark: "O", latest: true} : {mark: "X", latest: true}));
-        //     if (turn.mark === "O") {
-        //         setTurnCount((count) => count + 1);
-        //     }
-        // }
         setBoard(next);
         
         if (victory) {
             setError(`Player ${turn.mark} wins!`);
+            setGameOver(true);
             return;
         }
         
@@ -147,13 +125,13 @@ export default function GameView() {
         [next, victory] = checkForVictory(next, move?.row ?? 0, move?.col ?? 0);
 
         setBoard(next);
+        setTurn({ mark: "X", latest: true });
         
         if (victory) {
             setError(`Player ${turn.mark} wins!`);
+            setGameOver(true);
             return;
         }
-        
-        setTurn({ mark: "X", latest: true });
     }, [board]);
 
     useEffect(() => {
