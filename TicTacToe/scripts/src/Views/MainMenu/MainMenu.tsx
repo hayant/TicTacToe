@@ -18,8 +18,12 @@ function MainMenu(){
         })
     }
     
-    const handleGameStart = () => {
-        navigate("/app/game");
+    const handleGameStart = (singlePlayer: boolean) => {
+        navigate("/app/game", { state: { singlePlayer: singlePlayer } });
+    }
+
+    const handleOnlineLobby = () => {
+        navigate("/app/online");
     }
     
     const mainMenu = () => {
@@ -81,9 +85,27 @@ function MainMenu(){
                                     variant="contained"
                                     size="large"
                                     fullWidth
-                                    onClick={handleGameStart}
+                                    onClick={() => handleGameStart(true)}
                                 >
-                                    Start
+                                    1 Player
+                                </Button>
+                                <Button
+                                    type="submit"
+                                    variant="contained"
+                                    size="large"
+                                    fullWidth
+                                    onClick={() => handleGameStart(false)}
+                                >
+                                    2 Player Local
+                                </Button>
+                                <Button
+                                    type="submit"
+                                    variant="contained"
+                                    size="large"
+                                    fullWidth
+                                    onClick={handleOnlineLobby}
+                                >
+                                    Online Lobby
                                 </Button>
                                 <Button
                                     type="submit"

@@ -2,7 +2,7 @@ import React, {useCallback, useEffect, useState} from "react";
 import Grid from "./GameGrid";
 import {Authorization} from "../../Helpers/Authorization";
 import {Container, AppBar, Box, Typography, Stack, Toolbar, Button} from "@mui/material"
-import {useNavigate} from "react-router";
+import {useLocation, useNavigate} from "react-router";
 import {HttpHelpers} from "../../Helpers/HttpHelpers";
 import {CellValue} from "../../Data/CellValue";
 import {findBestMove} from "../../Helpers/AIHelpers";
@@ -23,9 +23,11 @@ export default function GameView() {
     const [timer, setTimer] = useState(0);
     const [error, setError] = useState<string | null>(null);
     const [gameOver, setGameOver] = useState(false);
-    const navigate = useNavigate();
-    const singlePlayerGame = true;
     
+    const navigate = useNavigate();
+    const location = useLocation();
+    const singlePlayerGame = location.state?.singlePlayer ?? false;
+
     Authorization.checkAuthentication();
 
     const checkForVictory = (next: CellValue[][], row: number, col: number): [CellValue[][], boolean] => {

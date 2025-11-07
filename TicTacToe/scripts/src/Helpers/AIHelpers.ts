@@ -10,8 +10,11 @@ import { CellValue } from "../Data/CellValue";
 const SIZE = 20;
 const WIN = 5;
 const MAX_SCORE = 1_000_000;
+const MAX_DEPTH = 5;
 
 type Board = CellValue[][];
+type Score = number[][];
+
 export type Move = { row: number; col: number } | null;
 
 /**
@@ -19,7 +22,7 @@ export type Move = { row: number; col: number } | null;
  * - maxDepth default 3 (tune for performance)
  * - considers only empty cells within `range` of existing marks to reduce branching
  */
-export function findBestMove(board: Board, maxDepth = 3, range = 2): Move {
+export function findBestMove(board: Board, maxDepth = MAX_DEPTH, range = 2): Move {
     // If board empty, pick center
     if (isBoardEmpty(board)) {
         const center = Math.floor(SIZE / 2);
@@ -31,17 +34,18 @@ export function findBestMove(board: Board, maxDepth = 3, range = 2): Move {
 
     let bestMove: Move = null;
     let bestScore = -Infinity;
+    let scores: Score = [...Array(SIZE)].map(() => Array(SIZE).fill(0));
 
     for (const mv of candidates) {
-        applyMove(board, mv, "O");
-        const score = alphabeta(board, maxDepth - 1, -Infinity, Infinity, false);
-        undoMove(board, mv);
+        applyMove(board, mv, "O", scores, maxDepth);
+        const score = alphabeta(board, maxDepth - 1, -Infinity, Infinity, false, scores);
+        undoMove(board, mv, scores);
         if (score > bestScore) {
             bestScore = score;
             bestMove = mv;
         }
         // For debugging...
-        // console.log(`Move (${mv.row}, ${mv.col}) has score ${score}`);
+        console.log(`Move (${mv.row}, ${mv.col}) has score ${score}`);
     }
 
     return bestMove;
@@ -54,52 +58,15 @@ function boardHash(board: Board): string {
     return board.flatMap(r => r.map(c => c.mark ?? "_")).join("");
 }
 
-// function alphabeta(board: Board, depth: number, alpha: number, beta: number, maximizing: boolean): number {
-//     const hash = boardHash(board);
-//     const cached = transposition.get(hash);
-//     if (cached !== undefined) return cached;
-//
-//     const winner = checkWinner(board);
-//     if (winner === "O") return MAX_SCORE;
-//     if (winner === "X") return -MAX_SCORE;
-//     if (depth === 0) return evaluate(board);
-//
-//     const moves = generateCandidates(board, 2);
-//     if (moves.length === 0) return 0; // draw
-//
-//     if (maximizing) {
-//         let value = -Infinity;
-//         for (const mv of moves) {
-//             applyMove(board, mv, "O");
-//             value = Math.max(value, alphabeta(board, depth - 1, alpha, beta, false));
-//             undoMove(board, mv);
-//             alpha = Math.max(alpha, value);
-//             if (alpha >= beta) break;
-//         }
-//         transposition.set(hash, value);
-//         return value;
-//     } else {
-//         let value = Infinity;
-//         for (const mv of moves) {
-//             applyMove(board, mv, "X");
-//             value = Math.min(value, alphabeta(board, depth - 1, alpha, beta, true));
-//             undoMove(board, mv);
-//             beta = Math.min(beta, value);
-//             if (alpha >= beta) break;
-//         }
-//         transposition.set(hash, value);
-//         return value;
-//     }
-//    
-//     // transposition.set(hash, value);
-//     // return value;
-// }
+function alphabeta(board: Board, depth: number, alpha: number, beta: number, maximizing: boolean, scores: Score): number {
+    const hash = boardHash(board);
+    const cached = transposition.get(hash);
+    if (cached !== undefined) return cached;
 
-function alphabeta(board: Board, depth: number, alpha: number, beta: number, maximizing: boolean): number {
     const winner = checkWinner(board);
-    if (winner === "O") return MAX_SCORE + depth; // prefer faster wins
-    if (winner === "X") return -MAX_SCORE - depth; // prefer slower losses
-    if (depth === 0) return evaluate(board);
+    if (winner === "O") return MAX_SCORE + depth;
+    if (winner === "X") return -MAX_SCORE - depth;
+    if (depth === 0) return evaluate(board, scores);
 
     const moves = generateCandidates(board, 2);
     if (moves.length === 0) return 0; // draw
@@ -107,95 +74,134 @@ function alphabeta(board: Board, depth: number, alpha: number, beta: number, max
     if (maximizing) {
         let value = -Infinity;
         for (const mv of moves) {
-            applyMove(board, mv, "O");
-            value = Math.max(value, alphabeta(board, depth - 1, alpha, beta, false));
-            undoMove(board, mv);
+            applyMove(board, mv, "O", scores, depth);
+            value = Math.max(value, alphabeta(board, depth - 1, alpha, beta, false, scores));
+            undoMove(board, mv, scores);
             alpha = Math.max(alpha, value);
             if (alpha >= beta) break;
         }
+        transposition.set(hash, value);
         return value;
     } else {
         let value = Infinity;
         for (const mv of moves) {
-            applyMove(board, mv, "X");
-            value = Math.min(value, alphabeta(board, depth - 1, alpha, beta, true));
-            undoMove(board, mv);
+            applyMove(board, mv, "X", scores, depth);
+            value = Math.min(value, alphabeta(board, depth - 1, alpha, beta, true, scores));
+            undoMove(board, mv, scores);
             beta = Math.min(beta, value);
             if (alpha >= beta) break;
         }
+        transposition.set(hash, value);
         return value;
     }
+
+    // transposition.set(hash, value);
+    // return value;
 }
 
-function applyMove(board: Board, mv: { row: number; col: number }, mark: "X" | "O") {
+// function alphabeta(board: Board, depth: number, alpha: number, beta: number, maximizing: boolean, scores: Score): number {
+//     const winner = checkWinner(board);
+//     if (winner === "O") return MAX_SCORE + depth; // prefer faster wins
+//     if (winner === "X") return -MAX_SCORE - depth; // prefer slower losses
+//     if (depth === 0) return evaluate(board, scores);
+//
+//     const moves = generateCandidates(board, 2);
+//     if (moves.length === 0) return 0; // draw
+//
+//     if (maximizing) {
+//         let value = -Infinity;
+//         for (const mv of moves) {
+//             applyMove(board, mv, "O", scores, depth);
+//             value = Math.max(value, alphabeta(board, depth - 1, alpha, beta, false, scores));
+//             undoMove(board, mv, scores);
+//             alpha = Math.max(alpha, value);
+//             if (alpha >= beta) break;
+//         }
+//         return value;
+//     } else {
+//         let value = Infinity;
+//         for (const mv of moves) {
+//             applyMove(board, mv, "X", scores, depth);
+//             value = Math.min(value, alphabeta(board, depth - 1, alpha, beta, true, scores));
+//             undoMove(board, mv, scores);
+//             beta = Math.min(beta, value);
+//             if (alpha >= beta) break;
+//         }
+//         return value;
+//     }
+// }
+
+function applyMove(board: Board, mv: { row: number; col: number }, mark: "X" | "O", scores: Score, depth: number) {
     board[mv.row][mv.col] = { mark, latest: true };
+    scores[mv.row][mv.col] = depth;
 }
 
-function undoMove(board: Board, mv: { row: number; col: number }) {
+function undoMove(board: Board, mv: { row: number; col: number }, scores: Score) {
     board[mv.row][mv.col] = { mark: null, latest: false };
+    scores[mv.row][mv.col] = 0;
 }
 
 /* ---------- Candidate generation ---------- */
-// function generateCandidates(board: Board, range = 2): { row: number; col: number }[] {
-//     const candidates: { row: number; col: number; score: number }[] = [];
-//     const used = new Set<string>();
-//
-//     for (let r = 0; r < SIZE; r++) {
-//         for (let c = 0; c < SIZE; c++) {
-//             if (board[r][c].mark !== null) continue;
-//
-//             let hasNeighbor = false;
-//             let neighborScore = 0;
-//             for (let dr = -range; dr <= range; dr++) {
-//                 for (let dc = -range; dc <= range; dc++) {
-//                     const nr = r + dr, nc = c + dc;
-//                     if (nr < 0 || nr >= SIZE || nc < 0 || nc >= SIZE) continue;
-//                     const neighbor = board[nr][nc].mark;
-//                     if (neighbor) {
-//                         hasNeighbor = true;
-//                         neighborScore += neighbor === "O" ? 3 : 2; // prioritize our threats
-//                     }
-//                 }
-//             }
-//
-//             if (hasNeighbor) {
-//                 candidates.push({ row: r, col: c, score: neighborScore });
-//                 used.add(`${r},${c}`);
-//             }
-//         }
-//     }
-//
-//     return candidates
-//         .sort((a, b) => b.score - a.score)
-//         .slice(0, 15) // 🔥 keep only top 10–15 promising moves
-//         .map(({ row, col }) => ({ row, col }));
-// }
-
 function generateCandidates(board: Board, range = 2): { row: number; col: number }[] {
+    const candidates: { row: number; col: number; score: number }[] = [];
     const used = new Set<string>();
-    const occupied: { r: number; c: number }[] = [];
+
     for (let r = 0; r < SIZE; r++) {
         for (let c = 0; c < SIZE; c++) {
-            if (board[r][c].mark !== null) occupied.push({ r, c });
-        }
-    }
-    if (occupied.length === 0) {
-        return [{ row: Math.floor(SIZE / 2), col: Math.floor(SIZE / 2) }];
-    }
-    for (const { r, c } of occupied) {
-        for (let dr = -range; dr <= range; dr++) {
-            for (let dc = -range; dc <= range; dc++) {
-                const nr = r + dr, nc = c + dc;
-                if (nr < 0 || nr >= SIZE || nc < 0 || nc >= SIZE) continue;
-                if (board[nr][nc].mark === null) used.add(`${nr},${nc}`);
+            if (board[r][c].mark !== null) continue;
+
+            let hasNeighbor = false;
+            let neighborScore = 0;
+            for (let dr = -range; dr <= range; dr++) {
+                for (let dc = -range; dc <= range; dc++) {
+                    const nr = r + dr, nc = c + dc;
+                    if (nr < 0 || nr >= SIZE || nc < 0 || nc >= SIZE) continue;
+                    const neighbor = board[nr][nc].mark;
+                    if (neighbor) {
+                        hasNeighbor = true;
+                        neighborScore += neighbor === "O" ? 3 : 2; // prioritize our threats
+                    }
+                }
+            }
+
+            if (hasNeighbor) {
+                candidates.push({ row: r, col: c, score: neighborScore });
+                used.add(`${r},${c}`);
             }
         }
     }
-    return Array.from(used).map(s => {
-        const [row, col] = s.split(",").map(Number);
-        return { row, col };
-    });
+
+    return candidates
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 15) // 🔥 keep only top 10–15 promising moves
+        .map(({ row, col }) => ({ row, col }));
 }
+
+// function generateCandidates(board: Board, range = 2): { row: number; col: number }[] {
+//     const used = new Set<string>();
+//     const occupied: { r: number; c: number }[] = [];
+//     for (let r = 0; r < SIZE; r++) {
+//         for (let c = 0; c < SIZE; c++) {
+//             if (board[r][c].mark !== null) occupied.push({ r, c });
+//         }
+//     }
+//     if (occupied.length === 0) {
+//         return [{ row: Math.floor(SIZE / 2), col: Math.floor(SIZE / 2) }];
+//     }
+//     for (const { r, c } of occupied) {
+//         for (let dr = -range; dr <= range; dr++) {
+//             for (let dc = -range; dc <= range; dc++) {
+//                 const nr = r + dr, nc = c + dc;
+//                 if (nr < 0 || nr >= SIZE || nc < 0 || nc >= SIZE) continue;
+//                 if (board[nr][nc].mark === null) used.add(`${nr},${nc}`);
+//             }
+//         }
+//     }
+//     return Array.from(used).map(s => {
+//         const [row, col] = s.split(",").map(Number);
+//         return { row, col };
+//     });
+// }
 
 function isBoardEmpty(board: Board): boolean {
     for (let r = 0; r < SIZE; r++) {
@@ -239,7 +245,7 @@ function checkWinner(board: Board): "X" | "O" | null {
    - if contains only O and empty: add 10^countO
    - if contains only X and empty: subtract 10^countX
 */
-function evaluate(board: Board): number {
+function evaluate(board: Board, scores: Score): number {
     let score = 0;
     // horizontal, vertical, diag \, diag /
     const directions = [
@@ -253,12 +259,15 @@ function evaluate(board: Board): number {
         for (let r = 0; r < SIZE; r++) {
             for (let c = 0; c < SIZE; c++) {
                 const cells: (string | null)[] = [];
+                let additionalScore = 0;
+
                 for (let k = 0; k < WIN; k++) {
                     const nr = r + dr * k, nc = c + dc * k;
                     if (nr < 0 || nr >= SIZE || nc < 0 || nc >= SIZE) {
                         cells.push(null);
                     } else {
                         cells.push(board[nr][nc].mark);
+                        additionalScore += scores[nr][nc];
                     }
                 }
                 const containsX = cells.some(x => x === "X");
@@ -268,8 +277,26 @@ function evaluate(board: Board): number {
                 // only O or only X
                 const countO = cells.filter(x => x === "O").length;
                 const countX = cells.filter(x => x === "X").length;
-                if (countO > 0) score += Math.pow(10, countO);
-                if (countX > 0) score -= Math.pow(10, countX);
+                // if (countO > 0) score += Math.pow(10, countO + additionalScore);
+                // if (countX > 0) score -= Math.pow(10, countX + additionalScore);
+                if (countO > 0) {
+                    score += Math.pow(10, countO);
+                }
+                if (countX > 0) {
+                    score -= Math.pow(10, countX);
+                }
+                // if (countO > 0) {
+                //     score += countO * countO + additionalScore;
+                // }
+                // if (countX > 0) {
+                //     score -= countX * countX - additionalScore;
+                // }
+                // if (countO > 0) {
+                //     score += countO + additionalScore;
+                // }
+                // if (countX > 0) {
+                //     score -= countX - additionalScore;
+                // }
             }
         }
     }
