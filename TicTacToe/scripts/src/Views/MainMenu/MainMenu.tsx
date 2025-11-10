@@ -1,9 +1,10 @@
-import React, {useEffect, useRef, useState} from "react";
-import GameView from "../GameView/GameView";
-import {Navigate, redirect, useNavigate} from "react-router";
+import React, {useState} from "react";
+import {GameViewProps} from "../GameView/GameView";
+import {useNavigate} from "react-router";
 import {HttpHelpers} from "../../Helpers/HttpHelpers";
 import {Authorization} from "../../Helpers/Authorization";
-import {Box, Button, Paper, Stack, TextField, Typography, Slider, Container} from "@mui/material";
+import {Box, Button, Container, Paper, Slider, Stack, Typography} from "@mui/material";
+import {GameMode} from "../../Data/GameMode";
 
 function MainMenu(){
     const [user, setUser] = useState<string>("");
@@ -19,7 +20,11 @@ function MainMenu(){
     }
     
     const handleGameStart = (singlePlayer: boolean) => {
-        navigate("/app/game", { state: { singlePlayer: singlePlayer } });
+        const gameViewProps: GameViewProps = {
+            gameMode: singlePlayer ? GameMode.SinglePlayer : GameMode.LocalMultiplayer,
+        }
+        
+        navigate("/app/game", { state: gameViewProps });
     }
 
     const handleOnlineLobby = () => {

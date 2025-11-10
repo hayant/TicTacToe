@@ -1,7 +1,23 @@
 // file: `TicTacToe/scripts/src/Views/OnlineLobby/OnlineLobbyView.tsx`
-import React, { useEffect, useState, useRef } from 'react';
-import { Container, Paper, TextField, Button, List, ListItem, Typography, Box } from '@mui/material';
-import { HubConnection, HubConnectionBuilder } from '@microsoft/signalr';
+import React, {useEffect, useRef, useState} from 'react';
+import {
+    Box,
+    Button,
+    Container,
+    Dialog,
+    DialogActions,
+    DialogTitle,
+    List,
+    ListItem,
+    Paper,
+    TextField,
+    Typography
+} from '@mui/material';
+import {HubConnection, HubConnectionBuilder} from '@microsoft/signalr';
+import {useNavigate} from 'react-router';
+import {Authorization} from "../../Helpers/Authorization";
+import {GameViewProps} from "../GameView/GameView";
+import {GameMode} from "../../Data/GameMode";
 
 interface ChatMessage {
     user: string;
@@ -16,10 +32,17 @@ export default function OnlineLobbyView() {
     const [connectedUsers, setConnectedUsers] = useState<string[]>([]);
     const [error, setError] = useState<string>('');
     const messagesEndRef = useRef<null | HTMLDivElement>(null);
+    const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null);
+    const [gameRequest, setGameRequest] = useState<string | null>(null);
+    const [currentUser, setCurrentUser] = useState<string>('');
+
+    const navigate = useNavigate();
+
+    Authorization.checkAuthentication(setCurrentUser);
 
     useEffect(() => {
         const newConnection = new HubConnectionBuilder()
-            .withUrl('/hubs/game')
+            .withUrl('/gameHub')
             .withAutomaticReconnect()
             .build();
 
@@ -62,6 +85,75 @@ export default function OnlineLobbyView() {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
+    useEffect(() => {
+        if (connection) {
+            connection.on('GameRequested', (requestingPlayer: string) => {
+                setGameRequest(requestingPlayer);
+            });
+
+            connection.on('GameAccepted', (acceptingPlayer: string) => {
+                const gameViewState: GameViewProps = {
+                    gameMode: GameMode.OnlineMultiplayer,
+                    opponentUsername: acceptingPlayer
+                };
+                
+                navigate('/app/game', {
+                    state: gameViewState
+                });
+            });
+
+            connection.on('GameStarted', (player1: string, player2: string) => {
+                setMessages(prev => [...prev, {
+                    user: 'System',
+                    message: `${player1} started a game with ${player2}`,
+                    timestamp: new Date()
+                }]);
+            });
+
+            connection.on('GameRejected', (requestingPlayer: string, rejectingPlayer: string) => {
+                setMessages(prev => [...prev, {
+                    user: 'System',
+                    message: `${rejectingPlayer} rejected a game with ${requestingPlayer}`,
+                    timestamp: new Date()
+                }]);
+            });
+        }
+    }, [connection, navigate]);
+
+    // Add these handlers
+    const handlePlayerSelect = (username: string) => {
+        if (username !== currentUser) {
+            setSelectedPlayer(username);
+        }
+    };
+
+    const handlePlayRequest = async () => {
+        if (connection && selectedPlayer) {
+            await connection.invoke('RequestGame', selectedPlayer);
+        }
+    };
+
+    const handleAcceptGame = async () => {
+        if (connection && gameRequest) {
+            await connection.invoke('AcceptGameRequest', gameRequest);
+            setGameRequest(null);
+            navigate('/app/game', {
+                state: {
+                    online: true,
+                    mark: 'O',
+                    opponent: gameRequest
+                }
+            });
+        }
+    };
+
+    const handleRejectGame = async () => {
+        if (connection && gameRequest) {
+            await connection.invoke('RejectGameRequest', gameRequest);
+            setGameRequest(null);
+        }
+    };
+    
     const sendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
         if (connection && messageInput.trim()) {
@@ -74,16 +166,52 @@ export default function OnlineLobbyView() {
         }
     };
 
+    const handleQuit = () => {
+        if (connection) {
+            connection.stop();
+        }
+        navigate('/app');
+    };
+
     return (
         <Container maxWidth="lg" sx={{ mt: 4 }}>
             <Box display="flex" gap={2} height="600px">
-                <Paper sx={{ width: '25%', p: 2 }}>
+                <Paper sx={{ width: '25%', p: 2, display: 'flex', flexDirection: 'column' }}>
                     <Typography variant="h6">Online Users</Typography>
-                    <List>
+                    <List sx={{ flexGrow: 1 }}>
                         {connectedUsers.map((user, index) => (
-                            <ListItem key={index}>{user}</ListItem>
+                            <ListItem
+                                key={index}
+                                onClick={() => handlePlayerSelect(user)}
+                                sx={{
+                                    cursor: user !== currentUser ? 'pointer' : 'default',
+                                    bgcolor: selectedPlayer === user ? 'action.selected' : 'inherit',
+                                    '&:hover': {
+                                        bgcolor: user !== currentUser ? 'action.hover' : 'inherit'
+                                    }
+                                }}
+                            >
+                                {user} {user === currentUser && '(you)'}
+                            </ListItem>
                         ))}
                     </List>
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={handlePlayRequest}
+                        disabled={!selectedPlayer}
+                        sx={{ mt: 2, mb: 1 }}
+                    >
+                        Play Online
+                    </Button>
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={handleQuit}
+                        sx={{ mt: 2 }}
+                    >
+                        Quit to Main Menu
+                    </Button>
                 </Paper>
 
                 <Paper sx={{ width: '75%', p: 2, display: 'flex', flexDirection: 'column' }}>
@@ -120,6 +248,20 @@ export default function OnlineLobbyView() {
                     {error}
                 </Typography>
             )}
+
+            <Dialog open={!!gameRequest} onClose={handleRejectGame}>
+                <DialogTitle>
+                    {gameRequest ? `${gameRequest} wants to play with you` : ''}
+                </DialogTitle>
+                <DialogActions>
+                    <Button onClick={handleRejectGame} color="error">
+                        Reject
+                    </Button>
+                    <Button onClick={handleAcceptGame} color="primary" variant="contained">
+                        Accept
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Container>
     );
 }

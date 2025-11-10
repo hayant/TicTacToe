@@ -1,15 +1,21 @@
 import React, {useCallback, useEffect, useState} from "react";
 import Grid from "./GameGrid";
 import {Authorization} from "../../Helpers/Authorization";
-import {Container, AppBar, Box, Typography, Stack, Toolbar, Button} from "@mui/material"
+import {AppBar, Box, Button, Container, Stack, Toolbar, Typography} from "@mui/material"
 import {useLocation, useNavigate} from "react-router";
-import {HttpHelpers} from "../../Helpers/HttpHelpers";
 import {CellValue} from "../../Data/CellValue";
 import {findBestMove} from "../../Helpers/AIHelpers";
+import {GameMode} from "../../Data/GameMode";
+import { HubConnection, HubConnectionBuilder } from '@microsoft/signalr';
 
 const SIZE = 20;
 
-function createEmpty(size = SIZE): CellValue[][] {
+export type GameViewProps = {
+    gameMode: GameMode;
+    opponentUsername?: string;
+}
+
+export function createEmpty(size = SIZE): CellValue[][] {
     return Array.from({ length: size }, ():CellValue[] =>
         Array.from({ length: size }, (): CellValue => ({ mark: null, latest: false }))
     );
@@ -23,11 +29,13 @@ export default function GameView() {
     const [timer, setTimer] = useState(0);
     const [error, setError] = useState<string | null>(null);
     const [gameOver, setGameOver] = useState(false);
-    
+    const [connection, setConnection] = useState<HubConnection | null>(null);
+
     const navigate = useNavigate();
     const location = useLocation();
-    const singlePlayerGame = location.state?.singlePlayer ?? false;
-
+    
+    const state = location.state as GameViewProps;
+    
     Authorization.checkAuthentication();
 
     const checkForVictory = (next: CellValue[][], row: number, col: number): [CellValue[][], boolean] => {
@@ -84,36 +92,52 @@ export default function GameView() {
         if (gameOver || board[row][col].mark !== null) {
             return;
         }
-        
+
+        // In online mode, only allow moves on player's turn
+        if (state.gameMode === GameMode.OnlineMultiplayer) {
+            const isMyTurn = (turn.mark === "X" && !state.opponentUsername) ||
+                (turn.mark === "O" && state.opponentUsername);
+            if (!isMyTurn) {
+                return;
+            }
+        }
+
         setError(null);
-        
+
         let next = board.map((r) => r.map(c => ({ mark: c.mark, latest: false })));
         next[row][col] = { mark: turn.mark, latest: true };
 
         let victory = false;
         [next, victory] = checkForVictory(next, row, col);
-        
+
         setBoard(next);
-        
+
         if (victory) {
             setError(`Player ${turn.mark} wins!`);
             setGameOver(true);
             return;
         }
-        
-        if (singlePlayerGame) {
+
+        // Handle different game modes
+        if (state.gameMode === GameMode.SinglePlayer) {
             setTurn({ mark: "O", latest: true });
+        } else if (state.gameMode === GameMode.OnlineMultiplayer) {
+            // Send move to opponent
+            if (connection) {
+                await connection.invoke('MakeMove', row, col);
+            }
+            setTurn(t => (t.mark === "X" ? { mark: "O", latest: true } : { mark: "X", latest: true }));
         } else {
             setTurn(t => (t.mark === "X" ? { mark: "O", latest: true } : { mark: "X", latest: true }));
         }
-        
+
         if (turn.mark === "O") {
             setTurnCount((count) => count + 1);
         }
-    }, [turn, board]);
+    }, [turn, board, state.gameMode, state.opponentUsername, connection, gameOver]);
 
     const handleAIMove = useCallback(() => {
-        if (!singlePlayerGame) {
+        if (state.gameMode !== GameMode.SinglePlayer) {
             return;
         }
         
@@ -137,19 +161,64 @@ export default function GameView() {
     }, [board]);
 
     useEffect(() => {
-        if (singlePlayerGame && turn.mark === "O") {
+        if (state.gameMode === GameMode.SinglePlayer && turn.mark === "O") {
             handleAIMove();
         }
-    }, [turn, singlePlayerGame, handleAIMove]);
+    }, [turn, state.gameMode, handleAIMove]);
+
+    useEffect(() => {
+        if (state.gameMode === GameMode.OnlineMultiplayer) {
+            const newConnection = new HubConnectionBuilder()
+                .withUrl('/gameHub')
+                .withAutomaticReconnect()
+                .build();
+
+            setConnection(newConnection);
+
+            newConnection.start()
+                .then(() => {
+                    newConnection.on('OpponentMove', (row: number, col: number) => {
+                        setBoard(prev => {
+                            const next = prev.map(r => r.map(c => ({ mark: c.mark, latest: false })));
+                            next[row][col] = { mark: turn.mark === "X" ? "O" : "X", latest: true };
+                            return next;
+                        });
+                        setTurn(t => (t.mark === "X" ? { mark: "O", latest: true } : { mark: "X", latest: true }));
+                        if (turn.mark === "O") {
+                            setTurnCount(count => count + 1);
+                        }
+                    });
+
+                    newConnection.on('OpponentQuit', () => {
+                        setError("Opponent has left the game");
+                        setGameOver(true);
+                    });
+                })
+                .catch(err => setError("Connection failed: " + err));
+
+            return () => {
+                if (newConnection.state === 'Connected') {
+                    newConnection.invoke('OpponentQuit');
+                    newConnection.stop();
+                }
+            };
+        }
+    }, [state.gameMode]);
     
     const handleReset = () => {
         setBoard(createEmpty());
         setTurn({mark: "X", latest: true});
     };
 
-    const handleQuit = () => {
-        navigate("/app");
-    }
+    const handleQuit = useCallback(() => {
+        if (state.gameMode === GameMode.OnlineMultiplayer && connection) {
+            connection.invoke('OpponentQuit')
+                .then(() => connection.stop())
+                .finally(() => navigate("/app"));
+        } else {
+            navigate("/app");
+        }
+    }, [connection, state.gameMode, navigate]);
 
     return (
         <Container sx={{ width: "100%", alignContent: "center", justifyContent: "center", display: "flex" }}>
@@ -183,6 +252,19 @@ export default function GameView() {
                                     padding: "2px",
                                 }}
                             >
+                                <strong>Time elapsed:</strong> {gameTime}
+                            </Typography>
+                        </Box>
+                        <Box sx={{ flexGrow: 4 }}>
+                            {state.gameMode === GameMode.OnlineMultiplayer && (
+                                <Typography sx={{ padding: "2px" }}>
+                                    <strong>Opponent:</strong> {state.opponentUsername}
+                                </Typography>
+                            )}
+                            <Typography sx={{ padding: "2px" }}>
+                                <strong>Turn {turnCount}:</strong> {turn.mark}
+                            </Typography>
+                            <Typography sx={{ padding: "2px" }}>
                                 <strong>Time elapsed:</strong> {gameTime}
                             </Typography>
                         </Box>
