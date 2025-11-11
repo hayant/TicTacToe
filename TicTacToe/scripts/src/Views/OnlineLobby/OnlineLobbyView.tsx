@@ -92,13 +92,14 @@ export default function OnlineLobbyView() {
             });
 
             connection.on('GameAccepted', (acceptingPlayer: string) => {
-                const gameViewState: GameViewProps = {
+                const gameViewProps: GameViewProps = {
                     gameMode: GameMode.OnlineMultiplayer,
-                    opponentUsername: acceptingPlayer
+                    opponentUsername: acceptingPlayer,
+                    iAmX: true,
                 };
                 
                 navigate('/app/game', {
-                    state: gameViewState
+                    state: gameViewProps
                 });
             });
 
@@ -137,12 +138,15 @@ export default function OnlineLobbyView() {
         if (connection && gameRequest) {
             await connection.invoke('AcceptGameRequest', gameRequest);
             setGameRequest(null);
+
+            const gameViewProps: GameViewProps = {
+                gameMode: GameMode.OnlineMultiplayer,
+                opponentUsername: gameRequest,
+                iAmX: false,
+            };
+            
             navigate('/app/game', {
-                state: {
-                    online: true,
-                    mark: 'O',
-                    opponent: gameRequest
-                }
+                state: gameViewProps
             });
         }
     };

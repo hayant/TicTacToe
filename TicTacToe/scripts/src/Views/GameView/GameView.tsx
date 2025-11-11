@@ -13,6 +13,7 @@ const SIZE = 20;
 export type GameViewProps = {
     gameMode: GameMode;
     opponentUsername?: string;
+    iAmX?: boolean;
 }
 
 export function createEmpty(size = SIZE): CellValue[][] {
@@ -35,11 +36,13 @@ export default function GameView() {
     const location = useLocation();
     
     const state = location.state as GameViewProps;
-    
+
     Authorization.checkAuthentication();
 
     const checkForVictory = (next: CellValue[][], row: number, col: number): [CellValue[][], boolean] => {
-        // Horizontal, Vertical, Diagonal /, Diagonal \
+        const placedMark = next[row][col].mark;
+        if (!placedMark) return [next, false];
+
         const directions = [
             { dr: 0, dc: 1 },
             { dr: 1, dc: 0 },
@@ -50,43 +53,37 @@ export default function GameView() {
         for (const { dr, dc } of directions) {
             let count = 1;
 
-            // Check in the positive direction
+            // Positive direction
             for (let step = 1; step < 5; step++) {
                 const r = row + dr * step;
                 const c = col + dc * step;
-                if (r < 0 || r >= SIZE || c < 0 || c >= SIZE || next[r][c].mark !== turn.mark) {
-                    break;
-                }
+                if (r < 0 || r >= SIZE || c < 0 || c >= SIZE || next[r][c].mark !== placedMark) break;
                 count++;
             }
 
-            // Check in the negative direction
+            // Negative direction
             for (let step = 1; step < 5; step++) {
                 const r = row - dr * step;
                 const c = col - dc * step;
-                if (r < 0 || r >= SIZE || c < 0 || c >= SIZE || next[r][c].mark !== turn.mark) {
-                    break;
-                }
+                if (r < 0 || r >= SIZE || c < 0 || c >= SIZE || next[r][c].mark !== placedMark) break;
                 count++;
             }
 
             if (count >= 5) {
-                // Mark winning cells
                 for (let step = -4; step <= 4; step++) {
                     const r = row + dr * step;
                     const c = col + dc * step;
-                    if (r < 0 || r >= SIZE || c < 0 || c >= SIZE) {
-                        continue;
-                    }
-                    if (next[r][c].mark === turn.mark) {
+                    if (r < 0 || r >= SIZE || c < 0 || c >= SIZE) continue;
+                    if (next[r][c].mark === placedMark) {
                         next[r][c] = { mark: next[r][c].mark, latest: true };
                     }
                 }
                 return [next, true];
             }
         }
-        return [next, false]; // TODO
-    }
+
+        return [next, false];
+    };
 
     const handleCellClick = useCallback(async (row: number, col: number) => {
         if (gameOver || board[row][col].mark !== null) {
@@ -95,8 +92,9 @@ export default function GameView() {
 
         // In online mode, only allow moves on player's turn
         if (state.gameMode === GameMode.OnlineMultiplayer) {
-            const isMyTurn = (turn.mark === "X" && !state.opponentUsername) ||
-                (turn.mark === "O" && state.opponentUsername);
+            const isMyTurn = (turn.mark === "X" && (state.iAmX ?? true)) ||
+                (turn.mark === "O" && !(state.iAmX ?? true));
+            
             if (!isMyTurn) {
                 return;
             }
@@ -115,6 +113,11 @@ export default function GameView() {
         if (victory) {
             setError(`Player ${turn.mark} wins!`);
             setGameOver(true);
+            
+            if (state.gameMode === GameMode.OnlineMultiplayer && connection) {
+                await connection.invoke('MakeMove', row, col);
+            }
+            
             return;
         }
 
@@ -130,10 +133,10 @@ export default function GameView() {
         } else {
             setTurn(t => (t.mark === "X" ? { mark: "O", latest: true } : { mark: "X", latest: true }));
         }
-
-        if (turn.mark === "O") {
-            setTurnCount((count) => count + 1);
-        }
+        
+        // if (turn.mark === "O") {
+        setTurnCount(count => count + 1);
+        // }
     }, [turn, board, state.gameMode, state.opponentUsername, connection, gameOver]);
 
     const handleAIMove = useCallback(() => {
@@ -160,6 +163,25 @@ export default function GameView() {
         }
     }, [board]);
 
+    const handleOnlineOpponentMove = useCallback(async (row: number, col: number) => {
+        let next = board.map((r) => r.map(c => ({ mark: c.mark, latest: false })));
+        next[row][col] = { mark: turn.mark , latest: true };
+
+        let victory = false;
+        [next, victory] = checkForVictory(next, row, col);
+
+        setBoard(next);
+
+        if (victory) {
+            setError(`Player ${turn.mark} wins!`);
+            setGameOver(true);
+            return;
+        }
+
+        setTurn(t => (t.mark === "X" ? { mark: "O", latest: true } : { mark: "X", latest: true }));
+        setTurnCount(count => count + 1);
+    }, [board, turn]);
+    
     useEffect(() => {
         if (state.gameMode === GameMode.SinglePlayer && turn.mark === "O") {
             handleAIMove();
@@ -167,54 +189,79 @@ export default function GameView() {
     }, [turn, state.gameMode, handleAIMove]);
 
     useEffect(() => {
-        if (state.gameMode === GameMode.OnlineMultiplayer) {
-            const newConnection = new HubConnectionBuilder()
-                .withUrl('/gameHub')
-                .withAutomaticReconnect()
-                .build();
+        if (state.gameMode !== GameMode.OnlineMultiplayer) return;
 
-            setConnection(newConnection);
+        const newConnection = new HubConnectionBuilder()
+            .withUrl('/gameHub')
+            .withAutomaticReconnect()
+            .build();
 
-            newConnection.start()
-                .then(() => {
-                    newConnection.on('OpponentMove', (row: number, col: number) => {
-                        setBoard(prev => {
-                            const next = prev.map(r => r.map(c => ({ mark: c.mark, latest: false })));
-                            next[row][col] = { mark: turn.mark === "X" ? "O" : "X", latest: true };
-                            return next;
-                        });
-                        setTurn(t => (t.mark === "X" ? { mark: "O", latest: true } : { mark: "X", latest: true }));
-                        if (turn.mark === "O") {
-                            setTurnCount(count => count + 1);
+        setConnection(newConnection);
+
+        const opponentMark = (state.iAmX ?? true) ? "O" : "X";
+
+        newConnection
+            .start()
+            .then(() => {
+                // ✅ use functional state updates to avoid stale board
+                newConnection.on('OpponentMove', (row: number, col: number) => {
+                    let victory = false;
+                    
+                    setBoard(prev => {
+                        let next = prev.map(r => r.map(c => ({ mark: c.mark, latest: false })));
+                        next[row][col] = { mark: opponentMark, latest: true };
+
+                        [next, victory] = checkForVictory(next, row, col);
+
+                        if (victory) {
+                            setError(`Player ${opponentMark} wins!`);
+                            setGameOver(true);
                         }
+
+                        return next;
                     });
 
-                    newConnection.on('OpponentQuit', () => {
-                        setError("Opponent has left the game");
-                        setGameOver(true);
-                    });
-                })
-                .catch(err => setError("Connection failed: " + err));
+                    if (victory) {
+                        return;
+                    }
+                    
+                    setTurn(t => (t.mark === "X" ? { mark: "O", latest: true } : { mark: "X", latest: true }));
+                    setTurnCount(c => c + 1);
+                });
 
-            return () => {
-                if (newConnection.state === 'Connected') {
-                    newConnection.invoke('OpponentQuit');
-                    newConnection.stop();
-                }
-            };
-        }
-    }, [state.gameMode]);
+                newConnection.on('OpponentQuit', () => {
+                    setError("Opponent has left the game");
+                    setGameOver(true);
+                });
+            })
+            .catch(err => setError("Connection failed: " + err));
+
+        return () => {
+            // clean up on unmount
+            newConnection.off('OpponentMove');
+            newConnection.off('OpponentQuit');
+
+            if (newConnection.state === 'Connected') {
+                newConnection.invoke('OpponentQuit').finally(() => newConnection.stop());
+            } else {
+                newConnection.stop();
+            }
+        };
+    }, [state.gameMode, state.iAmX]);
+
     
     const handleReset = () => {
         setBoard(createEmpty());
         setTurn({mark: "X", latest: true});
+        setGameOver(false);
+        setTurnCount(1);
     };
 
     const handleQuit = useCallback(() => {
         if (state.gameMode === GameMode.OnlineMultiplayer && connection) {
             connection.invoke('OpponentQuit')
                 .then(() => connection.stop())
-                .finally(() => navigate("/app"));
+                .finally(() => navigate("/app/online"));
         } else {
             navigate("/app");
         }
@@ -245,7 +292,7 @@ export default function GameView() {
                                     padding: "2px",
                                 }}
                             >
-                                <strong>Turn {turnCount}:</strong> {turn.mark}
+                                <strong>Turn {Math.ceil(turnCount / 2)}:</strong> {turn.mark}
                             </Typography>
                             <Typography
                                 sx={{
@@ -261,14 +308,8 @@ export default function GameView() {
                                     <strong>Opponent:</strong> {state.opponentUsername}
                                 </Typography>
                             )}
-                            <Typography sx={{ padding: "2px" }}>
-                                <strong>Turn {turnCount}:</strong> {turn.mark}
-                            </Typography>
-                            <Typography sx={{ padding: "2px" }}>
-                                <strong>Time elapsed:</strong> {gameTime}
-                            </Typography>
                         </Box>
-                        <Button onClick={handleReset} color="inherit">
+                        <Button onClick={handleReset} color="inherit" disabled={state.gameMode === GameMode.OnlineMultiplayer}>
                             Reset
                         </Button>
                         <Button onClick={handleQuit} color="inherit">
