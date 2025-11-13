@@ -6,7 +6,11 @@ using TicTacToe.Backend.SignalR;
 using TicTacToe.Data;
 using TicTacToe.Data.DataAccess;
 using Microsoft.OpenApi.Models;
-var builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+{
+    Args = args,
+    WebRootPath = "wwwroot" // ensure this is relative to content root
+});
 
 // DbContext
 builder.Services.AddDbContext<TicTacToeDbContext>(options =>
