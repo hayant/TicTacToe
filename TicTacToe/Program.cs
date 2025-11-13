@@ -43,19 +43,27 @@ using (var scope = app.Services.CreateScope())
     db.Database.Migrate();
 }
 
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new PhysicalFileProvider(
-        Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "app")),
-    RequestPath = "/app"
-});
+var rootPath = Path.Combine(app.Environment.ContentRootPath, "wwwroot");
 
-app.UseStaticFiles(new StaticFileOptions
+var appPath = Path.Combine(rootPath, "app");
+if (Directory.Exists(appPath))
 {
-    FileProvider = new PhysicalFileProvider(
-        Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "login")),
-    RequestPath = "/login"
-});
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new PhysicalFileProvider(appPath),
+        RequestPath = "/app"
+    });
+}
+
+var loginPath = Path.Combine(rootPath, "login");
+if (Directory.Exists(loginPath))
+{
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new PhysicalFileProvider(loginPath),
+        RequestPath = "/login"
+    });
+}
 
 app.UseRouting();
 app.UseAuthentication();
