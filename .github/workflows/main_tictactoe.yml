@@ -25,11 +25,11 @@ jobs:
           node-version: '20'     # or whatever you use locally
 
       - name: Install frontend dependencies
-        working-directory: scripts
+        working-directory: TicTacToe/scripts
         run: npm ci
 
       - name: Build frontend with Webpack
-        working-directory: scripts
+        working-directory: TicTacToe/scripts
         run: npm run build
 
       - name: Copy frontend build output
@@ -76,4 +76,5 @@ jobs:
           package: .
 
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_EC99C56CD8914046A3F0E651D458CBBD }}
+
 
