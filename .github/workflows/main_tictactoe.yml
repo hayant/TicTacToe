@@ -25,17 +25,19 @@ jobs:
           node-version: '20'     # or whatever you use locally
 
       - name: Install frontend dependencies
-        working-directory: frontend
+        working-directory: scripts
         run: npm ci
 
       - name: Build frontend with Webpack
-        working-directory: frontend
+        working-directory: scripts
         run: npm run build
 
       - name: Copy frontend build output
         run: |
           mkdir -p TicTacToe/wwwroot/app
           cp -r frontend/dist/* TicTacToe/wwwroot/app/
+          mkdir -p TicTacToe/wwwroot/login
+          cp -r frontend/dist/* TicTacToe/wwwroot/login/
           
       # Backend
       - name: Set up .NET Core
@@ -74,3 +76,4 @@ jobs:
           package: .
 
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_EC99C56CD8914046A3F0E651D458CBBD }}
+
