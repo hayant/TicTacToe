@@ -34,12 +34,12 @@ jobs:
         working-directory: TicTacToe/scripts
         run: npm run build
 
-      - name: Copy frontend build output
-        run: |
-          mkdir -p TicTacToe/wwwroot/app
-          cp -r frontend/dist/* TicTacToe/wwwroot/app/
-          mkdir -p TicTacToe/wwwroot/login
-          cp -r frontend/dist/* TicTacToe/wwwroot/login/
+      #- name: Copy frontend build output
+      #  run: |
+      #    mkdir -p TicTacToe/wwwroot/app
+      #    cp -r frontend/dist/* TicTacToe/wwwroot/app/
+      #    mkdir -p TicTacToe/wwwroot/login
+      #    cp -r frontend/dist/* TicTacToe/wwwroot/login/
           
       # Backend
       - name: Set up .NET Core
@@ -78,6 +78,7 @@ jobs:
           package: .
 
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_EC99C56CD8914046A3F0E651D458CBBD }}
+
 
 
 
