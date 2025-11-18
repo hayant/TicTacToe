@@ -8,9 +8,6 @@
 
     <ItemGroup>
       <Folder Include="scripts\" />
-      <Folder Include="wwwroot\" />
-      <Folder Include="wwwroot\app\" />
-      <Folder Include="wwwroot\login\" />
     </ItemGroup>
 
     <ItemGroup>
