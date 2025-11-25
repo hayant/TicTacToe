@@ -8,6 +8,7 @@ import {GameMode} from "../../Data/GameMode";
 
 function MainMenu(){
     const [user, setUser] = useState<string>("");
+    const [difficulty, setDifficulty] = useState<number>(3);
     
     const navigate = useNavigate();
 
@@ -22,6 +23,7 @@ function MainMenu(){
     const handleGameStart = (singlePlayer: boolean) => {
         const gameViewProps: GameViewProps = {
             gameMode: singlePlayer ? GameMode.SinglePlayer : GameMode.LocalMultiplayer,
+            difficulty: singlePlayer ? difficulty : undefined,
         }
         
         navigate("/app/game", { state: gameViewProps });
@@ -76,14 +78,15 @@ function MainMenu(){
                                 </Typography>
                                 <Slider
                                     aria-label="Difficulty"
-                                    defaultValue={3}
-                                    getAriaValueText={value => value.toFixed(1)}
+                                    value={difficulty}
+                                    onChange={(_, value) => setDifficulty(value as number)}
+                                    getAriaValueText={value => value.toString()}
                                     valueLabelDisplay="auto"
                                     style={{ marginTop: "0px", marginBottom: "10px" }}
                                     step={1}
                                     marks
                                     min={1}
-                                    max={10}
+                                    max={5}
                                 />
                                 <Button
                                     type="submit"

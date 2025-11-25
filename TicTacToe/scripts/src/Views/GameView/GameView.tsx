@@ -4,7 +4,7 @@ import {Authorization} from "../../Helpers/Authorization";
 import {AppBar, Box, Button, Container, Stack, Toolbar, Typography} from "@mui/material"
 import {useLocation, useNavigate} from "react-router";
 import {CellValue} from "../../Data/CellValue";
-import {findBestMove} from "../../Helpers/AIHelpers";
+import {findBestMove, getDifficultySettings} from "../../Helpers/AIHelpers";
 import {GameMode} from "../../Data/GameMode";
 import { HubConnection, HubConnectionBuilder } from '@microsoft/signalr';
 
@@ -14,6 +14,7 @@ export type GameViewProps = {
     gameMode: GameMode;
     opponentUsername?: string;
     iAmX?: boolean;
+    difficulty?: number;
 }
 
 export function createEmpty(size = SIZE): CellValue[][] {
@@ -35,7 +36,8 @@ export default function GameView() {
     const navigate = useNavigate();
     const location = useLocation();
     
-    const state = location.state as GameViewProps;
+    const state = (location.state as GameViewProps) ?? { gameMode: GameMode.SinglePlayer };
+    const difficultyLevel = state.difficulty ?? 3;
 
     Authorization.checkAuthentication();
 
@@ -145,7 +147,8 @@ export default function GameView() {
         }
         
         let next = board.map((r) => r.map(c => ({ mark: c.mark, latest: false })));
-        const move = findBestMove(next);
+        const { depth, range, candidateLimit } = getDifficultySettings(difficultyLevel);
+        const move = findBestMove(next, depth, range, candidateLimit);
 
         next[move?.row ?? 0][move?.col ?? 0] = { mark: "O", latest: true };
 
@@ -161,7 +164,7 @@ export default function GameView() {
             setGameOver(true);
             return;
         }
-    }, [board]);
+    }, [board, state.gameMode, difficultyLevel]);
 
     const handleOnlineOpponentMove = useCallback(async (row: number, col: number) => {
         let next = board.map((r) => r.map(c => ({ mark: c.mark, latest: false })));
