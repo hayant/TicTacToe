@@ -92,6 +92,11 @@ export default function GameView() {
             return;
         }
 
+        // In single player mode, only allow X (human) to move
+        if (state.gameMode === GameMode.SinglePlayer && turn.mark !== "X") {
+            return;
+        }
+
         // In online mode, only allow moves on player's turn
         if (state.gameMode === GameMode.OnlineMultiplayer) {
             const isMyTurn = (turn.mark === "X" && (state.iAmX ?? true)) ||
@@ -126,45 +131,58 @@ export default function GameView() {
         // Handle different game modes
         if (state.gameMode === GameMode.SinglePlayer) {
             setTurn({ mark: "O", latest: true });
+            setError("Waiting for AI player's move");
+            setTurnCount(count => count + 1);
+            // Trigger AI move asynchronously
+            setTimeout(() => {
+                handleAIMove(next);
+            }, 100);
         } else if (state.gameMode === GameMode.OnlineMultiplayer) {
             // Send move to opponent
             if (connection) {
                 await connection.invoke('MakeMove', row, col);
             }
             setTurn(t => (t.mark === "X" ? { mark: "O", latest: true } : { mark: "X", latest: true }));
+            setTurnCount(count => count + 1);
         } else {
             setTurn(t => (t.mark === "X" ? { mark: "O", latest: true } : { mark: "X", latest: true }));
+            setTurnCount(count => count + 1);
         }
-        
-        // if (turn.mark === "O") {
-        setTurnCount(count => count + 1);
-        // }
     }, [turn, board, state.gameMode, state.opponentUsername, connection, gameOver]);
 
-    const handleAIMove = useCallback(() => {
-        if (state.gameMode !== GameMode.SinglePlayer) {
+    const handleAIMove = useCallback((currentBoard: CellValue[][]) => {
+        if (state.gameMode !== GameMode.SinglePlayer || gameOver) {
             return;
         }
         
-        let next = board.map((r) => r.map(c => ({ mark: c.mark, latest: false })));
+        // Use the passed board state instead of current state
+        let next = currentBoard.map((r) => r.map(c => ({ mark: c.mark, latest: false })));
         const { depth, range, candidateLimit } = getDifficultySettings(difficultyLevel);
         const move = findBestMove(next, depth, range, candidateLimit);
 
-        next[move?.row ?? 0][move?.col ?? 0] = { mark: "O", latest: true };
+        if (!move) {
+            setError(null);
+            setTurn({ mark: "X", latest: true });
+            return;
+        }
+
+        next[move.row][move.col] = { mark: "O", latest: true };
 
         // Check for victory.
         let victory = false;
-        [next, victory] = checkForVictory(next, move?.row ?? 0, move?.col ?? 0);
+        [next, victory] = checkForVictory(next, move.row, move.col);
 
         setBoard(next);
+        setError(null);
         setTurn({ mark: "X", latest: true });
+        setTurnCount(count => count + 1);
         
         if (victory) {
-            setError(`Player ${turn.mark} wins!`);
+            setError(`Player O wins!`);
             setGameOver(true);
             return;
         }
-    }, [board, state.gameMode, difficultyLevel]);
+    }, [state.gameMode, difficultyLevel, gameOver]);
 
     const handleOnlineOpponentMove = useCallback(async (row: number, col: number) => {
         let next = board.map((r) => r.map(c => ({ mark: c.mark, latest: false })));
@@ -184,12 +202,6 @@ export default function GameView() {
         setTurn(t => (t.mark === "X" ? { mark: "O", latest: true } : { mark: "X", latest: true }));
         setTurnCount(count => count + 1);
     }, [board, turn]);
-    
-    useEffect(() => {
-        if (state.gameMode === GameMode.SinglePlayer && turn.mark === "O") {
-            handleAIMove();
-        }
-    }, [turn, state.gameMode, handleAIMove]);
 
     useEffect(() => {
         if (state.gameMode !== GameMode.OnlineMultiplayer) return;
@@ -258,6 +270,7 @@ export default function GameView() {
         setTurn({mark: "X", latest: true});
         setGameOver(false);
         setTurnCount(1);
+        setError(null);
     };
 
     const handleQuit = useCallback(() => {
@@ -325,7 +338,7 @@ export default function GameView() {
                     // justifyContent="center"
                     sx={{
                         padding: "2px",
-                        color: "#f00",
+                        color: error && error.includes("Waiting") ? "#1976d2" : "#f00",
                         width: "100%",
                         textAlign: "center",
                     }}
