@@ -264,6 +264,29 @@ export default function GameView() {
         };
     }, [state.gameMode, state.iAmX]);
 
+    // Timer effect: start counting when game is active, stop when game over
+    useEffect(() => {
+        if (gameOver) {
+            return;
+        }
+
+        const interval = setInterval(() => {
+            setTimer(prev => {
+                const newTime = prev + 1;
+                const hours = Math.floor(newTime / 3600);
+                const minutes = Math.floor((newTime % 3600) / 60);
+                const seconds = newTime % 60;
+                
+                const formatTime = (num: number) => num.toString().padStart(2, '0');
+                setGameTime(`${formatTime(hours)}:${formatTime(minutes)}:${formatTime(seconds)}`);
+                
+                return newTime;
+            });
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [gameOver]);
+
     
     const handleReset = () => {
         setBoard(createEmpty());
@@ -271,6 +294,8 @@ export default function GameView() {
         setGameOver(false);
         setTurnCount(1);
         setError(null);
+        setTimer(0);
+        setGameTime("00:00:00");
     };
 
     const handleQuit = useCallback(() => {
