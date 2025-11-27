@@ -4,7 +4,6 @@ import {Authorization} from "../../Helpers/Authorization";
 import {AppBar, Box, Button, Container, Stack, Toolbar, Typography} from "@mui/material"
 import {useLocation, useNavigate} from "react-router";
 import {CellValue} from "../../Data/CellValue";
-import {findBestMove, getDifficultySettings} from "../../Helpers/AIHelpers";
 import {GameMode} from "../../Data/GameMode";
 import { HubConnection, HubConnectionBuilder } from '@microsoft/signalr';
 
@@ -133,9 +132,18 @@ export default function GameView() {
             setTurn({ mark: "O", latest: true });
             setError("Waiting for AI player's move");
             setTurnCount(count => count + 1);
-            // Trigger AI move asynchronously
-            setTimeout(() => {
-                handleAIMove(next);
+            // Trigger AI move asynchronously after ensuring connection is ready
+            setTimeout(async () => {
+                if (connection && connection.state === 'Connected') {
+                    await handleAIMove(next);
+                } else {
+                    // Wait a bit more for connection
+                    setTimeout(async () => {
+                        if (connection) {
+                            await handleAIMove(next);
+                        }
+                    }, 500);
+                }
             }, 100);
         } else if (state.gameMode === GameMode.OnlineMultiplayer) {
             // Send move to opponent
@@ -150,39 +158,59 @@ export default function GameView() {
         }
     }, [turn, board, state.gameMode, state.opponentUsername, connection, gameOver]);
 
-    const handleAIMove = useCallback((currentBoard: CellValue[][]) => {
-        if (state.gameMode !== GameMode.SinglePlayer || gameOver) {
+    const handleAIMove = useCallback(async (currentBoard: CellValue[][]) => {
+        if (state.gameMode !== GameMode.SinglePlayer || gameOver || !connection) {
             return;
         }
-        
-        // Use the passed board state instead of current state
-        let next = currentBoard.map((r) => r.map(c => ({ mark: c.mark, latest: false })));
-        const { depth, range, candidateLimit } = getDifficultySettings(difficultyLevel);
-        const move = findBestMove(next, depth, range, candidateLimit);
 
-        if (!move) {
+        try {
+            // Convert board format for backend
+            const boardForBackend = currentBoard.map(row => 
+                row.map(cell => ({
+                    mark: cell.mark,
+                    latest: cell.latest
+                }))
+            );
+
+            // Request AI move from backend
+            const move = await connection.invoke<{row: number, col: number} | null>(
+                'RequestAIMove', 
+                {
+                    board: boardForBackend,
+                    difficulty: difficultyLevel
+                }
+            );
+
+            if (!move) {
+                setError(null);
+                setTurn({ mark: "X", latest: true });
+                return;
+            }
+
+            // Apply the AI move
+            let next = currentBoard.map((r) => r.map(c => ({ mark: c.mark, latest: false })));
+            next[move.row][move.col] = { mark: "O", latest: true };
+
+            // Check for victory
+            let victory = false;
+            [next, victory] = checkForVictory(next, move.row, move.col);
+
+            setBoard(next);
             setError(null);
             setTurn({ mark: "X", latest: true });
-            return;
+            setTurnCount(count => count + 1);
+            
+            if (victory) {
+                setError(`Player O wins!`);
+                setGameOver(true);
+                return;
+            }
+        } catch (error) {
+            console.error("AI move error:", error);
+            setError("AI move failed. Please try again.");
+            setTurn({ mark: "X", latest: true });
         }
-
-        next[move.row][move.col] = { mark: "O", latest: true };
-
-        // Check for victory.
-        let victory = false;
-        [next, victory] = checkForVictory(next, move.row, move.col);
-
-        setBoard(next);
-        setError(null);
-        setTurn({ mark: "X", latest: true });
-        setTurnCount(count => count + 1);
-        
-        if (victory) {
-            setError(`Player O wins!`);
-            setGameOver(true);
-            return;
-        }
-    }, [state.gameMode, difficultyLevel, gameOver]);
+    }, [state.gameMode, difficultyLevel, gameOver, connection]);
 
     const handleOnlineOpponentMove = useCallback(async (row: number, col: number) => {
         let next = board.map((r) => r.map(c => ({ mark: c.mark, latest: false })));
@@ -204,62 +232,74 @@ export default function GameView() {
     }, [board, turn]);
 
     useEffect(() => {
-        if (state.gameMode !== GameMode.OnlineMultiplayer) return;
+        // Create SignalR connection for both single player (AI) and online multiplayer
+        if (state.gameMode === GameMode.LocalMultiplayer) return;
 
         const newConnection = new HubConnectionBuilder()
             .withUrl('/gameHub')
             .withAutomaticReconnect()
             .build();
 
-        setConnection(newConnection);
-
         const opponentMark = (state.iAmX ?? true) ? "O" : "X";
 
         newConnection
             .start()
             .then(() => {
-                // ✅ use functional state updates to avoid stale board
-                newConnection.on('OpponentMove', (row: number, col: number) => {
-                    let victory = false;
-                    
-                    setBoard(prev => {
-                        let next = prev.map(r => r.map(c => ({ mark: c.mark, latest: false })));
-                        next[row][col] = { mark: opponentMark, latest: true };
+                // Connection established - set connection state
+                setConnection(newConnection);
+                
+                // Only set up online multiplayer handlers for online mode
+                if (state.gameMode === GameMode.OnlineMultiplayer) {
+                    // ✅ use functional state updates to avoid stale board
+                    newConnection.on('OpponentMove', (row: number, col: number) => {
+                        let victory = false;
+                        
+                        setBoard(prev => {
+                            let next = prev.map(r => r.map(c => ({ mark: c.mark, latest: false })));
+                            next[row][col] = { mark: opponentMark, latest: true };
 
-                        [next, victory] = checkForVictory(next, row, col);
+                            [next, victory] = checkForVictory(next, row, col);
+
+                            if (victory) {
+                                setError(`Player ${opponentMark} wins!`);
+                                setGameOver(true);
+                            }
+
+                            return next;
+                        });
 
                         if (victory) {
-                            setError(`Player ${opponentMark} wins!`);
-                            setGameOver(true);
+                            return;
                         }
-
-                        return next;
+                        
+                        setTurn(t => (t.mark === "X" ? { mark: "O", latest: true } : { mark: "X", latest: true }));
+                        setTurnCount(c => c + 1);
                     });
 
-                    if (victory) {
-                        return;
-                    }
-                    
-                    setTurn(t => (t.mark === "X" ? { mark: "O", latest: true } : { mark: "X", latest: true }));
-                    setTurnCount(c => c + 1);
-                });
-
-                newConnection.on('OpponentQuit', () => {
-                    setError("Opponent has left the game");
-                    setGameOver(true);
-                });
+                    newConnection.on('OpponentQuit', () => {
+                        setError("Opponent has left the game");
+                        setGameOver(true);
+                    });
+                }
             })
             .catch(err => setError("Connection failed: " + err));
 
         return () => {
             // clean up on unmount
-            newConnection.off('OpponentMove');
-            newConnection.off('OpponentQuit');
-
-            if (newConnection.state === 'Connected') {
-                newConnection.invoke('OpponentQuit').finally(() => newConnection.stop());
+            if (state.gameMode === GameMode.OnlineMultiplayer) {
+                newConnection.off('OpponentMove');
+                newConnection.off('OpponentQuit');
+                
+                if (newConnection.state === 'Connected') {
+                    newConnection.invoke('OpponentQuit').finally(() => newConnection.stop());
+                } else {
+                    newConnection.stop();
+                }
             } else {
-                newConnection.stop();
+                // Single player mode - just stop connection
+                if (newConnection.state === 'Connected') {
+                    newConnection.stop();
+                }
             }
         };
     }, [state.gameMode, state.iAmX]);

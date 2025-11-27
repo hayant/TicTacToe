@@ -2,6 +2,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using System.Collections.Concurrent;
+using TicTacToe.Backend.AI;
+using TicTacToe.Backend.AI.Models;
 
 namespace TicTacToe.Backend.SignalR;
 
@@ -168,5 +170,20 @@ public class GameHub : Hub
         if (opponentConn == null) return;
 
         await Clients.Client(opponentConn).SendAsync("OpponentQuit");
+    }
+
+    // -------------------- AI PLAYER --------------------
+
+    public async Task<Move?> RequestAIMove(AIMoveRequest request)
+    {
+        if (request.Board == null || request.Board.Length == 0)
+        {
+            return null;
+        }
+
+        var settings = AIHelpers.GetDifficultySettings(request.Difficulty);
+        var move = AIHelpers.FindBestMove(request.Board, settings.Depth, settings.Range, settings.CandidateLimit);
+        
+        return move;
     }
 }
