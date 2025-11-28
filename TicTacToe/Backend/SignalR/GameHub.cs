@@ -181,8 +181,8 @@ public class GameHub : Hub
             return null;
         }
 
-        var settings = AIHelpers.GetDifficultySettings(request.Difficulty);
-        var move = AIHelpers.FindBestMove(request.Board, settings.Depth, settings.Range, settings.CandidateLimit);
+        var settings = AiHelpers.GetDifficultySettings(request.Difficulty);
+        var move = AiHelpers.FindBestMove(request.Board, settings.Depth, settings.Range, settings.CandidateLimit);
         
         return move;
     }

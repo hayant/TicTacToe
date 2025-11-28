@@ -2,7 +2,7 @@ using TicTacToe.Backend.AI.Models;
 
 namespace TicTacToe.Backend.AI;
 
-public static class AIHelpers
+public static class AiHelpers
 {
     private const int Size = 20;
     private const int Win = 5;
@@ -93,7 +93,6 @@ public static class AIHelpers
             2 => new DifficultySettings { Depth = 2, Range = 2, CandidateLimit = 10 },
             3 => new DifficultySettings { Depth = 3, Range = 2, CandidateLimit = 15 },
             4 => new DifficultySettings { Depth = 4, Range = 3, CandidateLimit = 20 },
-            5 => new DifficultySettings { Depth = 5, Range = 3, CandidateLimit = 25 },
             _ => new DifficultySettings { Depth = 5, Range = 3, CandidateLimit = 25 }
         };
     }
@@ -172,7 +171,7 @@ public static class AIHelpers
     {
         board[mv.Row][mv.Col] = new BoardCell { Mark = mark, Latest = true };
         var index = mark == "X" ? 0 : 1;
-        return unchecked(hash ^ Zobrist[mv.Row][mv.Col][index]);
+        return hash ^ Zobrist[mv.Row][mv.Col][index];
     }
 
     private static void UndoMove(BoardCell[][] board, Move mv)
@@ -182,7 +181,7 @@ public static class AIHelpers
 
     private static List<Move> GenerateCandidates(BoardCell[][] board, int range, int candidateLimit)
     {
-        var candidates = new List<(int Row, int Col, int Score)>();
+        var candidates = new List<(int Row, int Col, double Score)>();
 
         for (var r = 0; r < Size; r++)
         {
@@ -194,7 +193,7 @@ public static class AIHelpers
                 }
 
                 var hasNeighbor = false;
-                var neighborScore = 0;
+                double neighborScore = 0;
                 
                 for (var dr = -range; dr <= range; dr++)
                 {
@@ -210,7 +209,19 @@ public static class AIHelpers
                         if (neighbor != null)
                         {
                             hasNeighbor = true;
-                            neighborScore += neighbor == "O" ? 3 : 2;
+                            
+                            // Calculate Chebyshev distance (max of row/col distance)
+                            var distance = Math.Max(Math.Abs(dr), Math.Abs(dc));
+                            
+                            // Distance-based weight: closer cells get exponentially higher scores
+                            // Distance 1 = 1.0, Distance 2 = 0.5, Distance 3 = 0.25, etc.
+                            var distanceWeight = Math.Pow(0.5, distance - 1);
+                            
+                            // Base scores with higher priority for opponent marks
+                            var baseScore = neighbor == "O" ? 3.0 : 4.0; // Opponent marks worth more
+                            
+                            // Apply distance weighting
+                            neighborScore += baseScore * distanceWeight;
                         }
                     }
                 }
@@ -587,8 +598,8 @@ public static class AIHelpers
         public uint NextUInt32()
         {
             var t = _seed += 0x6d2b79f5;
-            t = (uint)(((t ^ (t >> 15)) * (t | 1)) & 0xFFFFFFFF);
-            t ^= (uint)((t + ((t ^ (t >> 7)) * (t | 61))) & 0xFFFFFFFF);
+            t = (((t ^ (t >> 15)) * (t | 1)) & 0xFFFFFFFF);
+            t ^= ((t + ((t ^ (t >> 7)) * (t | 61))) & 0xFFFFFFFF);
             return (t ^ (t >> 14)) & 0xFFFFFFFF;
         }
     }
@@ -596,8 +607,7 @@ public static class AIHelpers
 
 public class DifficultySettings
 {
-    public int Depth { get; set; }
-    public int Range { get; set; }
-    public int CandidateLimit { get; set; }
+    public int Depth { get; init; }
+    public int Range { get; init; }
+    public int CandidateLimit { get; init; }
 }
-
