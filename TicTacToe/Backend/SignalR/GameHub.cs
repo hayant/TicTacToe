@@ -159,15 +159,24 @@ public class GameHub : Hub
     public async Task OpponentQuit()
     {
         var username = Context.User?.Identity?.Name;
-        if (username == null) return;
+        if (username == null)
+        {
+            return;
+        }
 
         string? opponent = ConnectedUsers.Keys
             .FirstOrDefault(name => !name.Equals(username, StringComparison.OrdinalIgnoreCase));
 
-        if (opponent == null) return;
+        if (opponent == null)
+        {
+            return;
+        }
 
         var opponentConn = GetAnyConnectionForUser(opponent);
-        if (opponentConn == null) return;
+        if (opponentConn == null)
+        {
+            return;
+        }
 
         await Clients.Client(opponentConn).SendAsync("OpponentQuit");
     }
@@ -176,11 +185,11 @@ public class GameHub : Hub
 
     public async Task<Move?> RequestAIMove(AIMoveRequest request)
     {
-        if (request.Board == null || request.Board.Length == 0)
+        if (request.Board.Length == 0)
         {
             return null;
         }
-
+    
         var settings = AiHelpers.GetDifficultySettings(request.Difficulty);
         var move = AiHelpers.FindBestMove(request.Board, settings.Depth, settings.Range, settings.CandidateLimit);
         

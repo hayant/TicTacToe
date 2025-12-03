@@ -19,10 +19,7 @@ public class Game
     public User? User2 { get; init; }
     
     // Difficulty
-    public int Difficulty { get; init; }
-    
-    // Status (1 = InProgress, 2 = Finished)
-    public int Status { get; init; }
+    public int? Difficulty { get; init; }
     
     // GridSizeX
     public int GridSizeX { get; init; }
@@ -37,5 +34,5 @@ public class Game
     public DateTimeOffset StartTime { get; init; }
     
     // EndTime
-    public DateTimeOffset EndTime { get; init; }
+    public DateTimeOffset? EndTime { get; init; }
 }

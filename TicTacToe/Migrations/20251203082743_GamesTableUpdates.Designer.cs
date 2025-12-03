@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TicTacToe.Data;
 
@@ -11,9 +12,11 @@ using TicTacToe.Data;
 namespace TicTacToe.Migrations
 {
     [DbContext(typeof(TicTacToeDbContext))]
-    partial class TicTacToeDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251203082743_GamesTableUpdates")]
+    partial class GamesTableUpdates
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
