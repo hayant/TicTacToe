@@ -124,6 +124,15 @@ export default function GameView() {
                 await connection.invoke('MakeMove', row, col);
             }
             
+            // Update game end time in database when a player wins
+            if (connection && (state.gameMode === GameMode.SinglePlayer || state.gameMode === GameMode.OnlineMultiplayer)) {
+                try {
+                    await connection.invoke('EndGameWithWinner');
+                } catch (error) {
+                    console.error("Failed to update game end time:", error);
+                }
+            }
+            
             return;
         }
 
@@ -203,6 +212,16 @@ export default function GameView() {
             if (victory) {
                 setError(`Player O wins!`);
                 setGameOver(true);
+                
+                // Update game end time in database when AI wins
+                if (connection) {
+                    try {
+                        await connection.invoke('EndGameWithWinner');
+                    } catch (error) {
+                        console.error("Failed to update game end time:", error);
+                    }
+                }
+                
                 return;
             }
         } catch (error) {
@@ -244,14 +263,24 @@ export default function GameView() {
 
         newConnection
             .start()
-            .then(() => {
+            .then(async () => {
                 // Connection established - set connection state
                 setConnection(newConnection);
+                
+                // Start single player game in database
+                if (state.gameMode === GameMode.SinglePlayer) {
+                    try {
+                        await newConnection.invoke('StartSinglePlayerGame', difficultyLevel);
+                    } catch (error) {
+                        console.error("Failed to start single player game:", error);
+                        setError("Failed to initialize game");
+                    }
+                }
                 
                 // Only set up online multiplayer handlers for online mode
                 if (state.gameMode === GameMode.OnlineMultiplayer) {
                     // ✅ use functional state updates to avoid stale board
-                    newConnection.on('OpponentMove', (row: number, col: number) => {
+                    newConnection.on('OpponentMove', async (row: number, col: number) => {
                         let victory = false;
                         
                         setBoard(prev => {
@@ -269,6 +298,12 @@ export default function GameView() {
                         });
 
                         if (victory) {
+                            // Update game end time in database when opponent wins
+                            try {
+                                await newConnection.invoke('EndGameWithWinner');
+                            } catch (error) {
+                                console.error("Failed to update game end time:", error);
+                            }
                             return;
                         }
                         
