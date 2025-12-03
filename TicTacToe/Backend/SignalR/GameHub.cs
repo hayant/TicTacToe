@@ -20,6 +20,10 @@ public class GameHub : Hub
     private static readonly ConcurrentDictionary<string, int> ConnectionToGameId
         = new();
 
+    // username pair key -> gameId (key format: "user1|user2" where user1 < user2 alphabetically)
+    private static readonly ConcurrentDictionary<string, int> UserPairToGameId
+        = new(StringComparer.OrdinalIgnoreCase);
+
     private static readonly Lock Locker = new();
 
     private readonly GameDataAccess gameDataAccess;
@@ -159,11 +163,17 @@ public class GameHub : Hub
             type: GameType.TwoPlayerOnline
         );
 
-        // Store game ID for both connections
+        // Store game ID for both connections and by username pair
         lock (Locker)
         {
             ConnectionToGameId[Context.ConnectionId] = gameId;
             ConnectionToGameId[requestingConn] = gameId;
+            
+            // Store by username pair (alphabetically sorted for consistent key)
+            var userPairKey = string.Compare(requestingPlayer, acceptingPlayer, StringComparison.OrdinalIgnoreCase) < 0
+                ? $"{requestingPlayer}|{acceptingPlayer}"
+                : $"{acceptingPlayer}|{requestingPlayer}";
+            UserPairToGameId[userPairKey] = gameId;
         }
 
         // Notify all clients
@@ -285,12 +295,47 @@ public class GameHub : Hub
     /// </summary>
     public async Task<bool> EndGameWithWinner()
     {
+        var username = Context.User?.Identity?.Name;
+        if (username == null)
+        {
+            return false;
+        }
+
+        int? gameId = null;
+
         lock (Locker)
         {
-            if (ConnectionToGameId.TryGetValue(Context.ConnectionId, out var gameId))
+            // First try to get game ID by connection
+            if (ConnectionToGameId.TryGetValue(Context.ConnectionId, out var connGameId))
             {
-                return gameDataAccess.UpdateGameEndTime(gameId, DateTimeOffset.UtcNow);
+                gameId = connGameId;
             }
+            else
+            {
+                // If not found by connection, try to find by username pair
+                // Find opponent username
+                var opponent = ConnectedUsers.Keys
+                    .FirstOrDefault(name => !name.Equals(username, StringComparison.OrdinalIgnoreCase));
+
+                if (opponent != null)
+                {
+                    var userPairKey = string.Compare(username, opponent, StringComparison.OrdinalIgnoreCase) < 0
+                        ? $"{username}|{opponent}"
+                        : $"{opponent}|{username}";
+                    
+                    if (UserPairToGameId.TryGetValue(userPairKey, out var pairGameId))
+                    {
+                        gameId = pairGameId;
+                        // Also store for this connection for future calls
+                        ConnectionToGameId[Context.ConnectionId] = pairGameId;
+                    }
+                }
+            }
+        }
+
+        if (gameId.HasValue)
+        {
+            return gameDataAccess.UpdateGameEndTime(gameId.Value, DateTimeOffset.UtcNow);
         }
 
         return false;
