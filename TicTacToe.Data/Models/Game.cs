@@ -16,6 +16,10 @@ public class Game
     public required User User { get; init; }
     
     // User2Id
+    [ForeignKey(nameof(User2))]
+    public int? User2Id { get; init; }
+    
+    // User2
     public User? User2 { get; init; }
     
     // Difficulty
@@ -27,12 +31,12 @@ public class Game
     // GridSizeY
     public int GridSizeY { get; init; }
     
-    // Type (1 = SingleLocal, 2 = TwoPlayerLocal, 3 = TwoPlayerOnline)
+    // Type (see GameType enum: 1 = SinglePlayer, 2 = TwoPlayerLocal, 3 = TwoPlayerOnline)
     public int Type { get; init; }
     
     // StartTime
     public DateTimeOffset StartTime { get; init; }
     
     // EndTime
-    public DateTimeOffset? EndTime { get; init; }
+    public DateTimeOffset? EndTime { get; set; }
 }

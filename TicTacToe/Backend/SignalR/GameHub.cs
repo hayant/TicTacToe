@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.SignalR;
 using System.Collections.Concurrent;
 using TicTacToe.Backend.AI;
 using TicTacToe.Backend.AI.Models;
+using TicTacToe.Data.DataAccess;
+using TicTacToe.Data.Models;
 
 namespace TicTacToe.Backend.SignalR;
 
@@ -14,7 +16,20 @@ public class GameHub : Hub
     private static readonly ConcurrentDictionary<string, HashSet<string>> ConnectedUsers
         = new(StringComparer.OrdinalIgnoreCase);
 
+    // connectionId -> gameId
+    private static readonly ConcurrentDictionary<string, int> ConnectionToGameId
+        = new();
+
     private static readonly Lock Locker = new();
+
+    private readonly GameDataAccess gameDataAccess;
+    private readonly UserDataAccess userDataAccess;
+
+    public GameHub(GameDataAccess gameDataAccess, UserDataAccess userDataAccess)
+    {
+        this.gameDataAccess = gameDataAccess;
+        this.userDataAccess = userDataAccess;
+    }
 
     public override async Task OnConnectedAsync()
     {
@@ -61,6 +76,9 @@ public class GameHub : Hub
                         userFullyDisconnected = true;
                     }
                 }
+
+                // Remove game mapping for this connection
+                ConnectionToGameId.TryRemove(Context.ConnectionId, out _);
             }
 
             if (userFullyDisconnected)
@@ -121,6 +139,32 @@ public class GameHub : Hub
 
         var requestingConn = GetAnyConnectionForUser(requestingPlayer);
         if (requestingConn == null) return;
+
+        // Get user IDs
+        var requestingUser = userDataAccess.GetUser(requestingPlayer);
+        var acceptingUser = userDataAccess.GetUser(acceptingPlayer);
+
+        if (requestingUser == null || acceptingUser == null) return;
+
+        // Create game in database
+        const int gridSizeX = 20;
+        const int gridSizeY = 20;
+
+        var gameId = gameDataAccess.CreateGame(
+            userId: requestingUser.Id,
+            user2Id: acceptingUser.Id,
+            difficulty: null, // Multiplayer games don't have difficulty
+            gridSizeX: gridSizeX,
+            gridSizeY: gridSizeY,
+            type: GameType.TwoPlayerOnline
+        );
+
+        // Store game ID for both connections
+        lock (Locker)
+        {
+            ConnectionToGameId[Context.ConnectionId] = gameId;
+            ConnectionToGameId[requestingConn] = gameId;
+        }
 
         // Notify all clients
         await Clients.All.SendAsync("GameStarted", requestingPlayer, acceptingPlayer);
@@ -194,5 +238,61 @@ public class GameHub : Hub
         var move = AiHelpers.FindBestMove(request.Board, settings.Depth, settings.Range, settings.CandidateLimit);
         
         return move;
+    }
+
+    // -------------------- GAME MANAGEMENT --------------------
+
+    /// <summary>
+    /// Creates a new single player game. Called when single player game starts.
+    /// </summary>
+    public async Task<int> StartSinglePlayerGame(int difficulty)
+    {
+        var username = Context.User?.Identity?.Name;
+        if (username == null)
+        {
+            throw new InvalidOperationException("User not authenticated");
+        }
+
+        var user = userDataAccess.GetUser(username);
+        if (user == null)
+        {
+            throw new InvalidOperationException("User not found");
+        }
+
+        const int gridSizeX = 20;
+        const int gridSizeY = 20;
+
+        var gameId = gameDataAccess.CreateGame(
+            userId: user.Id,
+            user2Id: null, // Single player has no second user
+            difficulty: difficulty,
+            gridSizeX: gridSizeX,
+            gridSizeY: gridSizeY,
+            type: GameType.SinglePlayer
+        );
+
+        // Store game ID for this connection
+        lock (Locker)
+        {
+            ConnectionToGameId[Context.ConnectionId] = gameId;
+        }
+
+        return gameId;
+    }
+
+    /// <summary>
+    /// Updates the game end time when a player wins. Called when game ends with a winner.
+    /// </summary>
+    public async Task<bool> EndGameWithWinner()
+    {
+        lock (Locker)
+        {
+            if (ConnectionToGameId.TryGetValue(Context.ConnectionId, out var gameId))
+            {
+                return gameDataAccess.UpdateGameEndTime(gameId, DateTimeOffset.UtcNow);
+            }
+        }
+
+        return false;
     }
 }

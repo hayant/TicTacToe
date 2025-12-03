@@ -21,6 +21,7 @@ builder.Services.AddDbContext<TicTacToeDbContext>(options =>
 
 // Services
 builder.Services.AddScoped<UserDataAccess>();
+builder.Services.AddScoped<TicTacToe.Data.DataAccess.GameDataAccess>();
 
 // Authentication
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
