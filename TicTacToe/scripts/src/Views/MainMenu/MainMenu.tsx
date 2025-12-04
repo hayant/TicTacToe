@@ -130,14 +130,6 @@ function MainMenu(){
                                     variant="outlined"
                                     size="large"
                                     fullWidth
-                                    // onClick={showHighscores}
-                                >
-                                    Highscores
-                                </Button>
-                                <Button
-                                    variant="outlined"
-                                    size="large"
-                                    fullWidth
                                     onClick={handleQuit}
                                 >
                                     Quit
