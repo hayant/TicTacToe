@@ -272,16 +272,16 @@ public class GameHub : Hub
             currentMark = turnState.CurrentMark;
         }
 
+        // Calculate duration in milliseconds
         var durationTimeSpan = now - turnStartTime;
-        // Store duration as DateTimeOffset (base date + duration)
-        var duration = new DateTimeOffset(DateTime.MinValue.Add(durationTimeSpan), TimeSpan.Zero);
+        var durationMilliseconds = (long)durationTimeSpan.TotalMilliseconds;
 
         // Save the turn
         gameDataAccess.CreateGameTurn(
             gameId: gameId,
             turnNumber: turnNumber,
             userId: userId,
-            duration: duration,
+            duration: durationMilliseconds,
             posX: posX,
             posY: posY
         );

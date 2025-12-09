@@ -58,7 +58,7 @@ public class GameDataAccess(TicTacToeDbContext database)
         return database.Games.FirstOrDefault(g => g.Id == gameId);
     }
 
-    public void CreateGameTurn(int gameId, int turnNumber, int? userId, DateTimeOffset duration, int posX, int posY)
+    public void CreateGameTurn(int gameId, int turnNumber, int? userId, long duration, int posX, int posY)
     {
         var game = database.Games.FirstOrDefault(g => g.Id == gameId);
         if (game == null)

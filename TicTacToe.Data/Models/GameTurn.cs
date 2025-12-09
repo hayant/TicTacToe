@@ -24,8 +24,8 @@ public class GameTurn
     
     public User? User { get; init; }
     
-    // Duration
-    public DateTimeOffset Duration { get; init; }
+    // Duration (in milliseconds)
+    public long Duration { get; init; }
     
     // PosX
     public int PosX { get; init; }
