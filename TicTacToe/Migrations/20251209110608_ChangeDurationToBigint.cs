@@ -11,25 +11,17 @@ namespace TicTacToe.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AlterColumn<long>(
-                name: "Duration",
-                table: "GameTurns",
-                type: "bigint",
-                nullable: false,
-                oldClrType: typeof(DateTimeOffset),
-                oldType: "datetimeoffset");
+            migrationBuilder.DropColumn("Duration", "GameTurns");
+            
+            migrationBuilder.AddColumn<long>("Duration", "GameTurns", "bigint", nullable: false, defaultValue: 0L);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AlterColumn<DateTimeOffset>(
-                name: "Duration",
-                table: "GameTurns",
-                type: "datetimeoffset",
-                nullable: false,
-                oldClrType: typeof(long),
-                oldType: "bigint");
+            migrationBuilder.DropColumn("Duration", "GameTurns");
+
+            migrationBuilder.AddColumn<long>("Duration", "GameTurns", "datetimeoffset", nullable: false);
         }
     }
 }
