@@ -24,11 +24,8 @@ public class GameTurn
     
     public User? User { get; init; }
     
-    // StartTime
-    public DateTimeOffset StartTime { get; init; }
-    
-    // EndTime
-    public DateTimeOffset EndTime { get; init; }
+    // Duration
+    public DateTimeOffset Duration { get; init; }
     
     // PosX
     public int PosX { get; init; }

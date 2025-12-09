@@ -116,6 +116,18 @@ export default function GameView() {
 
         setBoard(next);
 
+        // Save moves to database before checking victory
+        if (state.gameMode === GameMode.SinglePlayer && turn.mark === "X") {
+            // Save human move to database
+            if (connection) {
+                try {
+                    await connection.invoke('MakeSinglePlayerMove', row, col);
+                } catch (error) {
+                    console.error("Failed to save single player move:", error);
+                }
+            }
+        }
+
         if (victory) {
             setError(`Player ${turn.mark} wins!`);
             setGameOver(true);
@@ -138,6 +150,7 @@ export default function GameView() {
 
         // Handle different game modes
         if (state.gameMode === GameMode.SinglePlayer) {
+            
             setTurn({ mark: "O", latest: true });
             setError("Waiting for AI player's move");
             setTurnCount(count => count + 1);

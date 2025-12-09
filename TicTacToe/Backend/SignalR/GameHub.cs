@@ -24,6 +24,16 @@ public class GameHub : Hub
     private static readonly ConcurrentDictionary<string, int> UserPairToGameId
         = new(StringComparer.OrdinalIgnoreCase);
 
+    // gameId -> turn state (turn number, current mark, turn start time)
+    private class TurnState
+    {
+        public int TurnNumber { get; set; } = 1;
+        public string CurrentMark { get; set; } = "X";
+        public DateTimeOffset TurnStartTime { get; set; } = DateTimeOffset.UtcNow;
+    }
+
+    private static readonly ConcurrentDictionary<int, TurnState> GameTurnStates = new();
+
     private static readonly Lock Locker = new();
 
     private readonly GameDataAccess gameDataAccess;
@@ -163,7 +173,7 @@ public class GameHub : Hub
             type: GameType.TwoPlayerOnline
         );
 
-        // Store game ID for both connections and by username pair
+        // Store game ID for both connections and by username pair, and initialize turn state
         lock (Locker)
         {
             ConnectionToGameId[Context.ConnectionId] = gameId;
@@ -174,6 +184,14 @@ public class GameHub : Hub
                 ? $"{requestingPlayer}|{acceptingPlayer}"
                 : $"{acceptingPlayer}|{requestingPlayer}";
             UserPairToGameId[userPairKey] = gameId;
+            
+            // Initialize turn state for the game
+            GameTurnStates.TryAdd(gameId, new TurnState
+            {
+                TurnNumber = 1,
+                CurrentMark = "X",
+                TurnStartTime = DateTimeOffset.UtcNow
+            });
         }
 
         // Notify all clients
@@ -191,7 +209,128 @@ public class GameHub : Hub
         await Clients.All.SendAsync("GameRejected", requestingPlayer, rejectingPlayer);
     }
 
+    // -------------------- TURN TRACKING HELPERS --------------------
+
+    private TurnState GetOrInitializeTurnState(int gameId)
+    {
+        return GameTurnStates.GetOrAdd(gameId, _ => new TurnState
+        {
+            TurnNumber = 1,
+            CurrentMark = "X",
+            TurnStartTime = DateTimeOffset.UtcNow
+        });
+    }
+
+    private int? GetGameIdForConnection()
+    {
+        lock (Locker)
+        {
+            if (ConnectionToGameId.TryGetValue(Context.ConnectionId, out var gameId))
+            {
+                return gameId;
+            }
+
+            // Try to find by username pair for online multiplayer
+            var username = Context.User?.Identity?.Name;
+            if (username != null)
+            {
+                var opponent = ConnectedUsers.Keys
+                    .FirstOrDefault(name => !name.Equals(username, StringComparison.OrdinalIgnoreCase));
+
+                if (opponent != null)
+                {
+                    var userPairKey = string.Compare(username, opponent, StringComparison.OrdinalIgnoreCase) < 0
+                        ? $"{username}|{opponent}"
+                        : $"{opponent}|{username}";
+
+                    if (UserPairToGameId.TryGetValue(userPairKey, out var pairGameId))
+                    {
+                        // Also store for this connection for future calls
+                        ConnectionToGameId[Context.ConnectionId] = pairGameId;
+                        return pairGameId;
+                    }
+                }
+            }
+
+            return null;
+        }
+    }
+
+    private void SaveGameTurn(int gameId, int posX, int posY, int? userId)
+    {
+        var turnState = GetOrInitializeTurnState(gameId);
+        var now = DateTimeOffset.UtcNow;
+        DateTimeOffset turnStartTime;
+        int turnNumber;
+        string currentMark;
+
+        // Read turn state values under lock
+        lock (Locker)
+        {
+            turnStartTime = turnState.TurnStartTime;
+            turnNumber = turnState.TurnNumber;
+            currentMark = turnState.CurrentMark;
+        }
+
+        var durationTimeSpan = now - turnStartTime;
+        // Store duration as DateTimeOffset (base date + duration)
+        var duration = new DateTimeOffset(DateTime.MinValue.Add(durationTimeSpan), TimeSpan.Zero);
+
+        // Save the turn
+        gameDataAccess.CreateGameTurn(
+            gameId: gameId,
+            turnNumber: turnNumber,
+            userId: userId,
+            duration: duration,
+            posX: posX,
+            posY: posY
+        );
+
+        // Update turn state for next move (thread-safe)
+        lock (Locker)
+        {
+            if (currentMark == "O")
+            {
+                // Turn number increments when returning from O to X
+                turnState.TurnNumber++;
+                turnState.CurrentMark = "X";
+            }
+            else
+            {
+                // X moves, next is O (don't increment turn number yet)
+                turnState.CurrentMark = "O";
+            }
+
+            turnState.TurnStartTime = now;
+        }
+    }
+
     // -------------------- GAME MOVES --------------------
+
+    /// <summary>
+    /// Saves a human player move in single player mode.
+    /// </summary>
+    public async Task MakeSinglePlayerMove(int row, int col)
+    {
+        var username = Context.User?.Identity?.Name;
+        if (username == null) return;
+
+        var gameId = GetGameIdForConnection();
+        if (!gameId.HasValue) return;
+
+        var user = userDataAccess.GetUser(username);
+        if (user == null) return;
+
+        var turnState = GetOrInitializeTurnState(gameId.Value);
+        // In single player, human is always X
+        lock (Locker)
+        {
+            if (turnState.CurrentMark == "X")
+            {
+                SaveGameTurn(gameId.Value, col, row, user.Id);
+            }
+        }
+    }
 
     public async Task MakeMove(int row, int col)
     {
@@ -206,6 +345,17 @@ public class GameHub : Hub
 
         var opponentConn = GetAnyConnectionForUser(opponent);
         if (opponentConn == null) return;
+
+        // Get game ID and save turn
+        var gameId = GetGameIdForConnection();
+        if (gameId.HasValue)
+        {
+            var user = userDataAccess.GetUser(username);
+            if (user != null)
+            {
+                SaveGameTurn(gameId.Value, col, row, user.Id);
+            }
+        }
 
         await Clients.Client(opponentConn).SendAsync("OpponentMove", row, col);
     }
@@ -245,7 +395,16 @@ public class GameHub : Hub
         }
     
         var settings = AiHelpers.GetDifficultySettings(request.Difficulty);
+        
+        var gameId = GetGameIdForConnection();
         var move = AiHelpers.FindBestMove(request.Board, settings.Depth, settings.Range, settings.CandidateLimit);
+        
+        // Save AI turn after move is calculated
+        if (move != null && gameId.HasValue)
+        {
+            // AI is always O in single player mode
+            SaveGameTurn(gameId.Value, move.Col, move.Row, null);
+        }
         
         return move;
     }
@@ -281,10 +440,17 @@ public class GameHub : Hub
             type: GameType.SinglePlayer
         );
 
-        // Store game ID for this connection
+        // Store game ID for this connection and initialize turn state
         lock (Locker)
         {
             ConnectionToGameId[Context.ConnectionId] = gameId;
+            // Initialize turn state for the game
+            GameTurnStates.TryAdd(gameId, new TurnState
+            {
+                TurnNumber = 1,
+                CurrentMark = "X",
+                TurnStartTime = DateTimeOffset.UtcNow
+            });
         }
 
         return gameId;

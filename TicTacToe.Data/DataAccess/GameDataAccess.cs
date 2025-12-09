@@ -57,5 +57,35 @@ public class GameDataAccess(TicTacToeDbContext database)
     {
         return database.Games.FirstOrDefault(g => g.Id == gameId);
     }
+
+    public void CreateGameTurn(int gameId, int turnNumber, int? userId, DateTimeOffset duration, int posX, int posY)
+    {
+        var game = database.Games.FirstOrDefault(g => g.Id == gameId);
+        if (game == null)
+        {
+            throw new InvalidOperationException($"Game with ID {gameId} not found");
+        }
+
+        User? user = null;
+        if (userId.HasValue)
+        {
+            user = database.Users.FirstOrDefault(u => u.Id == userId.Value);
+        }
+
+        var gameTurn = new GameTurn
+        {
+            GameId = gameId,
+            TurnNumber = turnNumber,
+            UserId = userId,
+            Duration = duration,
+            PosX = posX,
+            PosY = posY,
+            Game = game,
+            User = user
+        };
+
+        database.GameTurns.Add(gameTurn);
+        database.SaveChanges();
+    }
 }
 
