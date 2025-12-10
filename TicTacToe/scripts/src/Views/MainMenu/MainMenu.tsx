@@ -116,17 +116,6 @@ function MainMenu(){
                                     Online Lobby
                                 </Button>
                                 <Button
-                                    type="submit"
-                                    variant="contained"
-                                    size="large"
-                                    fullWidth
-                                    // onClick={continueGame}
-                                    disabled
-                                    style={{ marginBottom: "30px" }}
-                                >
-                                    Continue
-                                </Button>
-                                <Button
                                     variant="outlined"
                                     size="large"
                                     fullWidth
