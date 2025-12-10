@@ -120,6 +120,7 @@ function MainMenu(){
                                     size="large"
                                     fullWidth
                                     onClick={handleQuit}
+                                    style={{marginTop: "30px"}}
                                 >
                                     Quit
                                 </Button>
