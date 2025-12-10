@@ -14,6 +14,7 @@ export type GameViewProps = {
     opponentUsername?: string;
     iAmX?: boolean;
     difficulty?: number;
+    gameId?: number; // Optional gameId for continuing an existing game
 }
 
 export function createEmpty(size = SIZE): CellValue[][] {
@@ -283,9 +284,92 @@ export default function GameView() {
                 // Start single player game in database
                 if (state.gameMode === GameMode.SinglePlayer) {
                     try {
-                        await newConnection.invoke('StartSinglePlayerGame', difficultyLevel);
+                        // Check if we're continuing an existing game
+                        if (state.gameId) {
+                            // Continue existing game
+                            const continueSuccess = await newConnection.invoke<boolean>('ContinueGame', state.gameId);
+                            if (!continueSuccess) {
+                                console.error("Failed to continue game");
+                                setError("Failed to continue game");
+                                return;
+                            }
+
+                            // Load game state (turns)
+                            const turns = await newConnection.invoke<Array<{
+                                turnNumber: number;
+                                posX: number;
+                                posY: number;
+                                isAI: boolean;
+                                mark: string;
+                            }>>('LoadGameState', state.gameId);
+
+                            // Restore board state from turns
+                            const restoredBoard = createEmpty();
+
+                            for (const turn of turns) {
+                                restoredBoard[turn.posY][turn.posX] = {
+                                    mark: turn.mark as "X" | "O",
+                                    latest: false
+                                };
+                            }
+
+                            // Check for victory on the last move
+                            let hasVictory = false;
+                            let lastTurn: {posY: number, posX: number, mark: string, isAI: boolean} | null = null;
+                            if (turns.length > 0) {
+                                lastTurn = turns[turns.length - 1];
+                                const [boardWithLatest, victory] = checkForVictory(
+                                    restoredBoard.map(r => r.map(c => ({ ...c }))),
+                                    lastTurn.posY,
+                                    lastTurn.posX
+                                );
+                                
+                                if (victory) {
+                                    hasVictory = true;
+                                    // Use the board with victory highlights
+                                    for (let row = 0; row < SIZE; row++) {
+                                        for (let col = 0; col < SIZE; col++) {
+                                            restoredBoard[row][col] = boardWithLatest[row][col];
+                                        }
+                                    }
+                                } else {
+                                    // Mark the last move as latest if no victory
+                                    restoredBoard[lastTurn.posY][lastTurn.posX].latest = true;
+                                }
+                            }
+
+                            // Determine current turn
+                            let currentMark: "X" | "O" = "X"; // Default to X (human) for new game
+                            if (turns.length > 0 && lastTurn) {
+                                // If last turn was AI (O), next is X (human)
+                                // If last turn was human (X), next is O (AI)
+                                currentMark = lastTurn.isAI ? "X" : "O";
+                            }
+                            
+                            // Calculate turn count: total number of moves made
+                            // Each move increments turnCount, so it's just the number of turns
+                            const turnCount = turns.length || 1;
+
+                            // Restore state
+                            setBoard(restoredBoard);
+                            setTurn({ mark: currentMark, latest: true });
+                            setTurnCount(turnCount);
+                            
+                            // Reset gameOver to false when continuing (unless there's a victory)
+                            if (!hasVictory) {
+                                setGameOver(false);
+                                setError(null);
+                            } else {
+                                setGameOver(true);
+                                const winnerMark = lastTurn?.mark || "X";
+                                setError(`Player ${winnerMark} wins!`);
+                            }
+                        } else {
+                            // Start new game
+                            await newConnection.invoke('StartSinglePlayerGame', difficultyLevel);
+                        }
                     } catch (error) {
-                        console.error("Failed to start single player game:", error);
+                        console.error("Failed to start/continue single player game:", error);
                         setError("Failed to initialize game");
                     }
                 }
@@ -350,7 +434,7 @@ export default function GameView() {
                 }
             }
         };
-    }, [state.gameMode, state.iAmX]);
+    }, [state.gameMode, state.iAmX, state.gameId]);
 
     // Timer effect: start counting when game is active, stop when game over
     useEffect(() => {

@@ -506,4 +506,149 @@ public class GameHub : Hub
 
         return false;
     }
+
+    // -------------------- CONTINUE GAME --------------------
+
+    /// <summary>
+    /// Checks if there is an unfinished single player game for the current user.
+    /// Returns game info (gameId, difficulty) if found, null otherwise.
+    /// </summary>
+    public async Task<object?> CheckUnfinishedGame()
+    {
+        var username = Context.User?.Identity?.Name;
+        if (username == null)
+        {
+            return null;
+        }
+
+        var user = userDataAccess.GetUser(username);
+        if (user == null)
+        {
+            return null;
+        }
+
+        var game = gameDataAccess.GetUnfinishedSinglePlayerGame(user.Id);
+        if (game == null)
+        {
+            return null;
+        }
+
+        return new
+        {
+            gameId = game.Id,
+            difficulty = game.Difficulty ?? 3
+        };
+    }
+
+    /// <summary>
+    /// Loads game state (turns) for a specific game.
+    /// Returns list of turns with position and mark information.
+    /// </summary>
+    public async Task<List<object>> LoadGameState(int gameId)
+    {
+        var username = Context.User?.Identity?.Name;
+        if (username == null)
+        {
+            return new List<object>();
+        }
+
+        var game = gameDataAccess.GetGame(gameId);
+        if (game == null)
+        {
+            return new List<object>();
+        }
+
+        // Verify the game belongs to the current user
+        var user = userDataAccess.GetUser(username);
+        if (user == null || game.UserId != user.Id)
+        {
+            return new List<object>();
+        }
+
+        var turns = gameDataAccess.GetGameTurns(gameId);
+        
+        return turns.Select(turn => new
+        {
+            turnNumber = turn.TurnNumber,
+            posX = turn.PosX,
+            posY = turn.PosY,
+            isAI = turn.UserId == null, // null userId means AI move
+            mark = turn.UserId == null ? "O" : "X" // AI is O, human is X
+        }).Cast<object>().ToList();
+    }
+
+    /// <summary>
+    /// Continues an existing game by setting up the connection and restoring turn state.
+    /// </summary>
+    public async Task<bool> ContinueGame(int gameId)
+    {
+        var username = Context.User?.Identity?.Name;
+        if (username == null)
+        {
+            return false;
+        }
+
+        var game = gameDataAccess.GetGame(gameId);
+        if (game == null)
+        {
+            return false;
+        }
+
+        // Verify the game belongs to the current user and is unfinished
+        var user = userDataAccess.GetUser(username);
+        if (user == null || game.UserId != user.Id || game.EndTime != null)
+        {
+            return false;
+        }
+
+        // Load turns to determine current game state
+        var turns = gameDataAccess.GetGameTurns(gameId);
+        
+        // Determine current turn state from the last turn
+        int currentTurnNumber = 1;
+        string currentMark = "X";
+        
+        if (turns.Count > 0)
+        {
+            var lastTurn = turns.Last();
+            currentTurnNumber = lastTurn.TurnNumber;
+            
+            // If last turn was AI (O), next is X (human), turn number stays same
+            // If last turn was human (X), next is O (AI), turn number increments
+            if (lastTurn.UserId == null) // AI move
+            {
+                currentMark = "X";
+                // Turn number stays the same for next human move
+            }
+            else // Human move
+            {
+                currentMark = "O";
+                // Turn number increments for next AI move
+                currentTurnNumber++;
+            }
+        }
+
+        // Store game ID for this connection and restore turn state
+        lock (Locker)
+        {
+            ConnectionToGameId[Context.ConnectionId] = gameId;
+            
+            // Restore or initialize turn state for the game
+            GameTurnStates.AddOrUpdate(gameId, 
+                new TurnState
+                {
+                    TurnNumber = currentTurnNumber,
+                    CurrentMark = currentMark,
+                    TurnStartTime = DateTimeOffset.UtcNow
+                },
+                (key, existing) => new TurnState
+                {
+                    TurnNumber = currentTurnNumber,
+                    CurrentMark = currentMark,
+                    TurnStartTime = DateTimeOffset.UtcNow
+                });
+        }
+
+        return true;
+    }
 }

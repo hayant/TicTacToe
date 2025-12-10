@@ -87,5 +87,30 @@ public class GameDataAccess(TicTacToeDbContext database)
         database.GameTurns.Add(gameTurn);
         database.SaveChanges();
     }
+
+    /// <summary>
+    /// Gets the latest unfinished single player game for a user.
+    /// Returns null if no such game exists.
+    /// </summary>
+    public Game? GetUnfinishedSinglePlayerGame(int userId)
+    {
+        return database.Games
+            .Where(g => g.UserId == userId 
+                && g.Type == (int)GameType.SinglePlayer 
+                && g.EndTime == null)
+            .OrderByDescending(g => g.StartTime)
+            .FirstOrDefault();
+    }
+
+    /// <summary>
+    /// Gets all game turns for a specific game, ordered by turn number.
+    /// </summary>
+    public List<GameTurn> GetGameTurns(int gameId)
+    {
+        return database.GameTurns
+            .Where(gt => gt.GameId == gameId)
+            .OrderBy(gt => gt.TurnNumber)
+            .ToList();
+    }
 }
 
