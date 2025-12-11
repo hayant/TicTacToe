@@ -509,36 +509,6 @@ public class GameHub : Hub
 
     // -------------------- CONTINUE GAME --------------------
 
-    /// <summary>
-    /// Checks if there is an unfinished single player game for the current user.
-    /// Returns game info (gameId, difficulty) if found, null otherwise.
-    /// </summary>
-    public async Task<object?> CheckUnfinishedGame()
-    {
-        var username = Context.User?.Identity?.Name;
-        if (username == null)
-        {
-            return null;
-        }
-
-        var user = userDataAccess.GetUser(username);
-        if (user == null)
-        {
-            return null;
-        }
-
-        var game = gameDataAccess.GetUnfinishedSinglePlayerGame(user.Id);
-        if (game == null)
-        {
-            return null;
-        }
-
-        return new
-        {
-            gameId = game.Id,
-            difficulty = game.Difficulty ?? 3
-        };
-    }
 
     /// <summary>
     /// Loads game state (turns) for a specific game.

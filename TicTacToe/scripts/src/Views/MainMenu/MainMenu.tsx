@@ -1,40 +1,20 @@
-import React, {useState, useEffect} from "react";
+import React, {useState} from "react";
 import {GameViewProps} from "../GameView/GameView";
 import {useNavigate} from "react-router";
 import {HttpHelpers} from "../../Helpers/HttpHelpers";
 import {Authorization} from "../../Helpers/Authorization";
 import {Box, Button, Container, Paper, Slider, Stack, Typography, Dialog, DialogTitle, DialogContent, DialogActions} from "@mui/material";
 import {GameMode} from "../../Data/GameMode";
-import { HubConnection, HubConnectionBuilder } from '@microsoft/signalr';
 
 function MainMenu(){
     const [user, setUser] = useState<string>("");
     const [difficulty, setDifficulty] = useState<number>(3);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [unfinishedGame, setUnfinishedGame] = useState<{gameId: number, difficulty: number} | null>(null);
-    const [connection, setConnection] = useState<HubConnection | null>(null);
     
     const navigate = useNavigate();
 
     Authorization.checkAuthentication(setUser);
-
-    // Create SignalR connection for checking unfinished games
-    useEffect(() => {
-        const conn = new HubConnectionBuilder()
-            .withUrl('/gameHub')
-            .withAutomaticReconnect()
-            .build();
-
-        conn.start().catch(err => {
-            console.error("SignalR connection error:", err);
-        });
-
-        setConnection(conn);
-
-        return () => {
-            conn.stop();
-        };
-    }, []);
     
     const handleQuit = () => {
         HttpHelpers.makeRequest("api/Login/logout", "POST").then(result => {
@@ -54,17 +34,18 @@ function MainMenu(){
         }
 
         // For single player, check for unfinished game
-        if (connection && connection.state === 'Connected') {
-            try {
-                const result = await connection.invoke<{gameId: number, difficulty: number} | null>('CheckUnfinishedGame');
-                if (result) {
-                    setUnfinishedGame(result);
-                    setDialogOpen(true);
-                    return;
-                }
-            } catch (error) {
-                console.error("Failed to check for unfinished game:", error);
+        try {
+            const result = await HttpHelpers.makeRequest<{gameId: number, difficulty: number} | null>(
+                "api/Game/CheckUnfinishedGame",
+                "GET"
+            );
+            if (result) {
+                setUnfinishedGame(result);
+                setDialogOpen(true);
+                return;
             }
+        } catch (error) {
+            console.error("Failed to check for unfinished game:", error);
         }
 
         // No unfinished game found, start new game
