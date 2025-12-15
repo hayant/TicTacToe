@@ -36,7 +36,7 @@ function MainMenu(){
         // For single player, check for unfinished game
         try {
             const result = await HttpHelpers.makeRequest<{gameId: number, difficulty: number} | null>(
-                "api/Game/CheckUnfinishedGame",
+                "/api/Game/CheckUnfinishedGame",
                 "GET"
             );
             if (result) {

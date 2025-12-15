@@ -112,5 +112,21 @@ public class GameDataAccess(TicTacToeDbContext database)
             .OrderBy(gt => gt.TurnNumber)
             .ToList();
     }
+
+    /// <summary>
+    /// Gets the latest unfinished multiplayer game between two users.
+    /// Returns null if no such game exists.
+    /// Checks both UserId/User2Id combinations to handle either player being the inviter.
+    /// </summary>
+    public Game? GetUnfinishedMultiplayerGame(int userId1, int userId2)
+    {
+        return database.Games
+            .Where(g => g.Type == (int)GameType.TwoPlayerOnline
+                && g.EndTime == null
+                && ((g.UserId == userId1 && g.User2Id == userId2)
+                    || (g.UserId == userId2 && g.User2Id == userId1)))
+            .OrderByDescending(g => g.StartTime)
+            .FirstOrDefault();
+    }
 }
 

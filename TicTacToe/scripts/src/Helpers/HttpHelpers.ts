@@ -10,6 +10,11 @@ export class HttpHelpers {
     ): Promise<T> => {
         const headers = new Headers(headersInit);
 
+        // For GET requests, don't set Content-Type header
+        if (method === "GET") {
+            headers.delete("Content-Type");
+        }
+
         // Prepare body: pass through FormData / Blob / URLSearchParams; stringify objects when JSON
         let requestBody: BodyInit | undefined = undefined;
         if (body !== undefined && body !== null) {

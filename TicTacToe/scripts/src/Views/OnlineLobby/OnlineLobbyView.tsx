@@ -5,6 +5,7 @@ import {
     Container,
     Dialog,
     DialogActions,
+    DialogContent,
     DialogTitle,
     List,
     ListItem,
@@ -18,6 +19,7 @@ import { useNavigate } from 'react-router';
 import { Authorization } from "../../Helpers/Authorization";
 import { GameMode } from "../../Data/GameMode";
 import { GameViewProps } from "../GameView/GameView";
+import { HttpHelpers } from "../../Helpers/HttpHelpers";
 
 interface ChatMessage {
     user: string;
@@ -32,8 +34,12 @@ export default function OnlineLobbyView() {
     const [messageInput, setMessageInput] = useState('');
     const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null);
     const [gameRequest, setGameRequest] = useState<string | null>(null);
+    const [gameRequestGameId, setGameRequestGameId] = useState<number | null>(null);
     const [currentUser, setCurrentUser] = useState<string>('');
     const [error, setError] = useState('');
+    const [continueDialogOpen, setContinueDialogOpen] = useState(false);
+    const [unfinishedGameId, setUnfinishedGameId] = useState<number | null>(null);
+    const [pendingTargetPlayer, setPendingTargetPlayer] = useState<string | null>(null);
 
     const navigate = useNavigate();
     const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -86,15 +92,18 @@ export default function OnlineLobbyView() {
             setConnectedUsers([...users]);
         };
 
-        const handleGameRequested = (requestingPlayer: string) => {
+        const handleGameRequested = (requestingPlayer: string, continueGameId?: number) => {
             setGameRequest(requestingPlayer);
+            setGameRequestGameId(continueGameId || null);
         };
 
-        const handleGameAccepted = (acceptingPlayer: string) => {
+        const handleGameAccepted = (acceptingPlayer: string, gameId?: number, isContinuing?: boolean) => {
             const props: GameViewProps = {
                 gameMode: GameMode.OnlineMultiplayer,
                 opponentUsername: acceptingPlayer,
-                iAmX: true
+                iAmX: true,
+                gameId: gameId,
+                isContinuing: isContinuing
             };
             navigate('/app/game', { state: props });
         };
@@ -172,21 +181,74 @@ export default function OnlineLobbyView() {
 
     const handlePlayRequest = async () => {
         if (connection && selectedPlayer) {
-            await connection.invoke("RequestGame", selectedPlayer);
+            // Check for unfinished game
+            try {
+                const result = await HttpHelpers.makeRequest<{gameId: number} | null>(
+                    `/api/Game/CheckUnfinishedMultiplayerGame?targetPlayer=${encodeURIComponent(selectedPlayer)}`,
+                    "GET"
+                );
+                
+                if (result) {
+                    // Unfinished game exists, show dialog
+                    setUnfinishedGameId(result.gameId);
+                    setPendingTargetPlayer(selectedPlayer);
+                    setContinueDialogOpen(true);
+                } else {
+                    // No unfinished game, proceed with normal request
+                    await connection.invoke("RequestGame", selectedPlayer, null);
+                }
+            } catch (error) {
+                console.error("Failed to check for unfinished game:", error);
+                // On error, proceed with normal request
+                await connection.invoke("RequestGame", selectedPlayer, null);
+            }
+        }
+    };
+
+    const handleStartNewGame = async () => {
+        if (connection && pendingTargetPlayer) {
+            setContinueDialogOpen(false);
+            setUnfinishedGameId(null);
+            try {
+                await connection.invoke("RequestGame", pendingTargetPlayer, null);
+            } catch (error) {
+                console.error("Failed to send game request:", error);
+                setError("Failed to send game request. Please try again.");
+            }
+            setPendingTargetPlayer(null);
+        }
+    };
+
+    const handleContinueExistingGame = async () => {
+        if (connection && pendingTargetPlayer && unfinishedGameId) {
+            setContinueDialogOpen(false);
+            try {
+                // Pass the gameId as the second parameter
+                await connection.invoke("RequestGame", pendingTargetPlayer, unfinishedGameId);
+            } catch (error) {
+                console.error("Failed to send game request:", error);
+                setError("Failed to send game request. Please try again.");
+            }
+            setUnfinishedGameId(null);
+            setPendingTargetPlayer(null);
         }
     };
 
     const handleAcceptGame = async () => {
         if (connection && gameRequest) {
-            await connection.invoke("AcceptGameRequest", gameRequest);
+            const gameId = gameRequestGameId;
+            await connection.invoke("AcceptGameRequest", gameRequest, gameId);
 
             const props: GameViewProps = {
                 gameMode: GameMode.OnlineMultiplayer,
                 opponentUsername: gameRequest,
-                iAmX: false
+                iAmX: false,
+                gameId: gameId || undefined,
+                isContinuing: gameId !== null
             };
 
             setGameRequest(null);
+            setGameRequestGameId(null);
             navigate("/app/game", { state: props });
         }
     };
@@ -292,6 +354,20 @@ export default function OnlineLobbyView() {
                 <DialogActions>
                     <Button onClick={handleRejectGame} color="error">Reject</Button>
                     <Button onClick={handleAcceptGame} variant="contained">Accept</Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* CONTINUE GAME DIALOG */}
+            <Dialog open={continueDialogOpen} onClose={() => setContinueDialogOpen(false)}>
+                <DialogTitle>Continue Game?</DialogTitle>
+                <DialogContent>
+                    <Typography>
+                        Start a new game or continue the existing game?
+                    </Typography>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleStartNewGame}>Start new</Button>
+                    <Button onClick={handleContinueExistingGame} variant="contained">Continue existing</Button>
                 </DialogActions>
             </Dialog>
         </Container>

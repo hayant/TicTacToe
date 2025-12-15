@@ -129,7 +129,7 @@ public class GameHub : Hub
         return null;
     }
 
-    public async Task RequestGame(string targetPlayer)
+    public async Task RequestGame(string targetPlayer, int? continueGameId = null)
     {
         var requestingPlayer = Context.User?.Identity?.Name;
         if (requestingPlayer == null)
@@ -141,12 +141,21 @@ public class GameHub : Hub
 
         if (targetConnection != null)
         {
-            await Clients.Client(targetConnection)
-                .SendAsync("GameRequested", requestingPlayer);
+            // Send game request with optional gameId for continuing
+            if (continueGameId.HasValue)
+            {
+                await Clients.Client(targetConnection)
+                    .SendAsync("GameRequested", requestingPlayer, continueGameId.Value);
+            }
+            else
+            {
+                await Clients.Client(targetConnection)
+                    .SendAsync("GameRequested", requestingPlayer);
+            }
         }
     }
 
-    public async Task AcceptGameRequest(string requestingPlayer)
+    public async Task AcceptGameRequest(string requestingPlayer, int? continueGameId = null)
     {
         var acceptingPlayer = Context.User?.Identity?.Name;
         if (acceptingPlayer == null) return;
@@ -160,45 +169,147 @@ public class GameHub : Hub
 
         if (requestingUser == null || acceptingUser == null) return;
 
-        // Create game in database
-        const int gridSizeX = 20;
-        const int gridSizeY = 20;
+        int gameId;
+        bool isContinuing = continueGameId.HasValue;
 
-        var gameId = gameDataAccess.CreateGame(
-            userId: requestingUser.Id,
-            user2Id: acceptingUser.Id,
-            difficulty: null, // Multiplayer games don't have difficulty
-            gridSizeX: gridSizeX,
-            gridSizeY: gridSizeY,
-            type: GameType.TwoPlayerOnline
-        );
-
-        // Store game ID for both connections and by username pair, and initialize turn state
-        lock (Locker)
+        if (isContinuing)
         {
-            ConnectionToGameId[Context.ConnectionId] = gameId;
-            ConnectionToGameId[requestingConn] = gameId;
+            // Continue existing game
+            gameId = continueGameId.Value;
+            var game = gameDataAccess.GetGame(gameId);
             
-            // Store by username pair (alphabetically sorted for consistent key)
-            var userPairKey = string.Compare(requestingPlayer, acceptingPlayer, StringComparison.OrdinalIgnoreCase) < 0
-                ? $"{requestingPlayer}|{acceptingPlayer}"
-                : $"{acceptingPlayer}|{requestingPlayer}";
-            UserPairToGameId[userPairKey] = gameId;
-            
-            // Initialize turn state for the game
-            GameTurnStates.TryAdd(gameId, new TurnState
+            // Verify the game exists, is unfinished, and belongs to these two players
+            if (game == null || game.EndTime != null)
             {
-                TurnNumber = 1,
-                CurrentMark = "X",
-                TurnStartTime = DateTimeOffset.UtcNow
-            });
+                return; // Invalid game
+            }
+            
+            bool isValidGame = (game.UserId == requestingUser.Id && game.User2Id == acceptingUser.Id)
+                || (game.UserId == acceptingUser.Id && game.User2Id == requestingUser.Id);
+            
+            if (!isValidGame)
+            {
+                return; // Game doesn't belong to these players
+            }
+
+            // Load turns to determine current game state
+            var turns = gameDataAccess.GetGameTurns(gameId);
+            
+            // Determine current turn state from the last turn
+            int currentTurnNumber = 1;
+            string currentMark = "X";
+            
+            if (turns.Count > 0)
+            {
+                var lastTurn = turns.Last();
+                currentTurnNumber = lastTurn.TurnNumber;
+                
+                // Determine who made the last move and what mark they used
+                // UserId is X, User2Id is O
+                string lastMark;
+                if (lastTurn.UserId == null)
+                {
+                    // This shouldn't happen in multiplayer, but handle it
+                    lastMark = "O";
+                }
+                else if (lastTurn.UserId == game.UserId)
+                {
+                    lastMark = "X"; // UserId is X
+                }
+                else
+                {
+                    lastMark = "O"; // User2Id is O
+                }
+                
+                // Determine next mark: if last was X, next is O; if last was O, next is X
+                currentMark = lastMark == "X" ? "O" : "X";
+                
+                // Update turn number: if last was O, we increment for next X turn
+                if (lastMark == "O")
+                {
+                    currentTurnNumber++;
+                }
+            }
+
+            // Restore turn state
+            lock (Locker)
+            {
+                ConnectionToGameId[Context.ConnectionId] = gameId;
+                ConnectionToGameId[requestingConn] = gameId;
+                
+                // Store by username pair (alphabetically sorted for consistent key)
+                var userPairKey = string.Compare(requestingPlayer, acceptingPlayer, StringComparison.OrdinalIgnoreCase) < 0
+                    ? $"{requestingPlayer}|{acceptingPlayer}"
+                    : $"{acceptingPlayer}|{requestingPlayer}";
+                UserPairToGameId[userPairKey] = gameId;
+                
+                // Restore or update turn state for the game
+                GameTurnStates.AddOrUpdate(gameId,
+                    new TurnState
+                    {
+                        TurnNumber = currentTurnNumber,
+                        CurrentMark = currentMark,
+                        TurnStartTime = DateTimeOffset.UtcNow
+                    },
+                    (key, existing) => new TurnState
+                    {
+                        TurnNumber = currentTurnNumber,
+                        CurrentMark = currentMark,
+                        TurnStartTime = DateTimeOffset.UtcNow
+                    });
+            }
+        }
+        else
+        {
+            // Create new game in database
+            const int gridSizeX = 20;
+            const int gridSizeY = 20;
+
+            gameId = gameDataAccess.CreateGame(
+                userId: requestingUser.Id,
+                user2Id: acceptingUser.Id,
+                difficulty: null, // Multiplayer games don't have difficulty
+                gridSizeX: gridSizeX,
+                gridSizeY: gridSizeY,
+                type: GameType.TwoPlayerOnline
+            );
+
+            // Store game ID for both connections and by username pair, and initialize turn state
+            lock (Locker)
+            {
+                ConnectionToGameId[Context.ConnectionId] = gameId;
+                ConnectionToGameId[requestingConn] = gameId;
+                
+                // Store by username pair (alphabetically sorted for consistent key)
+                var userPairKey = string.Compare(requestingPlayer, acceptingPlayer, StringComparison.OrdinalIgnoreCase) < 0
+                    ? $"{requestingPlayer}|{acceptingPlayer}"
+                    : $"{acceptingPlayer}|{requestingPlayer}";
+                UserPairToGameId[userPairKey] = gameId;
+                
+                // Initialize turn state for the game
+                GameTurnStates.TryAdd(gameId, new TurnState
+                {
+                    TurnNumber = 1,
+                    CurrentMark = "X",
+                    TurnStartTime = DateTimeOffset.UtcNow
+                });
+            }
         }
 
         // Notify all clients
         await Clients.All.SendAsync("GameStarted", requestingPlayer, acceptingPlayer);
 
-        await Clients.Client(requestingConn)
-            .SendAsync("GameAccepted", acceptingPlayer);
+        // Send game accepted with gameId and whether we're continuing
+        if (isContinuing)
+        {
+            await Clients.Client(requestingConn)
+                .SendAsync("GameAccepted", acceptingPlayer, gameId, true);
+        }
+        else
+        {
+            await Clients.Client(requestingConn)
+                .SendAsync("GameAccepted", acceptingPlayer, gameId, false);
+        }
     }
 
     public async Task RejectGameRequest(string requestingPlayer)
@@ -530,20 +641,45 @@ public class GameHub : Hub
 
         // Verify the game belongs to the current user
         var user = userDataAccess.GetUser(username);
-        if (user == null || game.UserId != user.Id)
+        if (user == null)
+        {
+            return new List<object>();
+        }
+
+        // For single player: user must be UserId
+        // For multiplayer: user must be either UserId or User2Id
+        bool isAuthorized = false;
+        if (game.Type == (int)GameType.SinglePlayer)
+        {
+            isAuthorized = game.UserId == user.Id;
+        }
+        else if (game.Type == (int)GameType.TwoPlayerOnline)
+        {
+            isAuthorized = game.UserId == user.Id || game.User2Id == user.Id;
+        }
+
+        if (!isAuthorized)
         {
             return new List<object>();
         }
 
         var turns = gameDataAccess.GetGameTurns(gameId);
         
+        // Determine who is X and who is O
+        // For single player: UserId is X, AI is O
+        // For multiplayer: UserId is X, User2Id is O
         return turns.Select(turn => new
         {
             turnNumber = turn.TurnNumber,
             posX = turn.PosX,
             posY = turn.PosY,
             isAI = turn.UserId == null, // null userId means AI move
-            mark = turn.UserId == null ? "O" : "X" // AI is O, human is X
+            userId = turn.UserId,
+            mark = turn.UserId == null 
+                ? "O" // AI is O
+                : (game.Type == (int)GameType.SinglePlayer 
+                    ? "X" // In single player, user is always X
+                    : (turn.UserId == game.UserId ? "X" : "O")) // In multiplayer, UserId is X, User2Id is O
         }).Cast<object>().ToList();
     }
 

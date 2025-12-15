@@ -44,4 +44,37 @@ public class GameController(GameDataAccess gameDataAccess, UserDataAccess userDa
             difficulty = game.Difficulty ?? 3
         });
     }
+
+    /// <summary>
+    /// Checks if there is an unfinished multiplayer game between the current user and target player.
+    /// Returns game info (gameId) if found, null otherwise.
+    /// </summary>
+    [HttpGet("CheckUnfinishedMultiplayerGame")]
+    public IActionResult CheckUnfinishedMultiplayerGame([FromQuery] string targetPlayer)
+    {
+        var username = User?.Identity?.Name;
+        if (username == null)
+        {
+            return Unauthorized();
+        }
+
+        var user = userDataAccess.GetUser(username);
+        var targetUser = userDataAccess.GetUser(targetPlayer);
+        
+        if (user == null || targetUser == null)
+        {
+            return Unauthorized();
+        }
+
+        var game = gameDataAccess.GetUnfinishedMultiplayerGame(user.Id, targetUser.Id);
+        if (game == null)
+        {
+            return Ok(null);
+        }
+
+        return Ok(new
+        {
+            gameId = game.Id
+        });
+    }
 }

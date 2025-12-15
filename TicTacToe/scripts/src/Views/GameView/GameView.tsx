@@ -15,6 +15,7 @@ export type GameViewProps = {
     iAmX?: boolean;
     difficulty?: number;
     gameId?: number; // Optional gameId for continuing an existing game
+    isContinuing?: boolean; // Whether we're continuing an existing game
 }
 
 export function createEmpty(size = SIZE): CellValue[][] {
@@ -376,6 +377,86 @@ export default function GameView() {
                 
                 // Only set up online multiplayer handlers for online mode
                 if (state.gameMode === GameMode.OnlineMultiplayer) {
+                    // Check if we're continuing an existing game
+                    if (state.isContinuing && state.gameId) {
+                        try {
+                            // Load game state (turns)
+                            const turns = await newConnection.invoke<Array<{
+                                turnNumber: number;
+                                posX: number;
+                                posY: number;
+                                isAI: boolean;
+                                mark: string;
+                                userId: number | null;
+                            }>>('LoadGameState', state.gameId);
+
+                            // Restore board state from turns
+                            const restoredBoard = createEmpty();
+
+                            for (const turn of turns) {
+                                restoredBoard[turn.posY][turn.posX] = {
+                                    mark: turn.mark as "X" | "O",
+                                    latest: false
+                                };
+                            }
+
+                            // Check for victory on the last move
+                            let hasVictory = false;
+                            let lastTurn: {posY: number, posX: number, mark: string, userId: number | null} | null = null;
+                            if (turns.length > 0) {
+                                lastTurn = turns[turns.length - 1];
+                                const [boardWithLatest, victory] = checkForVictory(
+                                    restoredBoard.map(r => r.map(c => ({ ...c }))),
+                                    lastTurn.posY,
+                                    lastTurn.posX
+                                );
+                                
+                                if (victory) {
+                                    hasVictory = true;
+                                    // Use the board with victory highlights
+                                    for (let row = 0; row < SIZE; row++) {
+                                        for (let col = 0; col < SIZE; col++) {
+                                            restoredBoard[row][col] = boardWithLatest[row][col];
+                                        }
+                                    }
+                                } else {
+                                    // Mark the last move as latest if no victory
+                                    restoredBoard[lastTurn.posY][lastTurn.posX].latest = true;
+                                }
+                            }
+
+                            // Determine current turn
+                            // In multiplayer, turns alternate: X, O, X, O, etc.
+                            let currentMark: "X" | "O" = "X"; // Default to X for new game
+                            if (turns.length > 0 && lastTurn) {
+                                // Determine next mark: if last was X, next is O; if last was O, next is X
+                                const lastMark = lastTurn.mark;
+                                currentMark = lastMark === "X" ? "O" : "X";
+                            }
+
+                            // Calculate turn count: total number of moves made
+                            const turnCount = turns.length || 1;
+
+                            // Restore state
+                            setBoard(restoredBoard);
+                            setTurn({ mark: currentMark, latest: true });
+                            setTurnCount(turnCount);
+                            
+                            // Reset gameOver to false when continuing (unless there's a victory)
+                            if (!hasVictory) {
+                                setGameOver(false);
+                                setError(null);
+                            } else {
+                                setGameOver(true);
+                                const winnerMark = lastTurn?.mark || "X";
+                                setError(`Player ${winnerMark} wins!`);
+                            }
+                        } catch (error) {
+                            console.error("Failed to load multiplayer game state:", error);
+                            setError("Failed to load game state");
+                        }
+                    }
+
                     // ✅ use functional state updates to avoid stale board
                     newConnection.on('OpponentMove', async (row: number, col: number) => {
                         let victory = false;
@@ -434,7 +515,7 @@ export default function GameView() {
                 }
             }
         };
-    }, [state.gameMode, state.iAmX, state.gameId]);
+    }, [state.gameMode, state.iAmX, state.gameId, state.isContinuing]);
 
     // Timer effect: start counting when game is active, stop when game over
     useEffect(() => {
