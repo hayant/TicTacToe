@@ -42,28 +42,40 @@ function applyMoveAndCheckVictory(
     return checkForVictoryFn(next, row, col);
 }
 
-// Pure utility function to restore game state from turns
+// Types for game state restoration
 type TurnData = {
     turnNumber: number;
     posX: number;
     posY: number;
     mark: string;
-    isAI?: boolean;
+    isAI: boolean;
     userId?: number | null;
 };
+
+type RestoredGameState = {
+    board: CellValue[][];
+    currentMark: "X" | "O";
+    turnCount: number;
+    hasVictory: boolean;
+    winnerMark?: string;
+};
+
+type AIMoveResponse = {
+    row: number;
+    col: number;
+} | null;
+
+type BoardForBackend = Array<Array<{
+    mark: "X" | "O" | null;
+    latest: boolean;
+}>>;
 
 function restoreGameState(
     turns: TurnData[],
     isSinglePlayer: boolean,
     checkForVictoryFn: (board: CellValue[][], row: number, col: number) => [CellValue[][], boolean],
     boardSize: number
-): {
-    board: CellValue[][];
-    currentMark: "X" | "O";
-    turnCount: number;
-    hasVictory: boolean;
-    winnerMark?: string;
-} {
+): RestoredGameState {
     const restoredBoard = createEmpty(boardSize);
 
     // Restore board from turns
@@ -220,7 +232,7 @@ export default function GameView() {
             if (connection) {
                 try {
                     await connection.invoke('MakeSinglePlayerMove', row, col);
-                } catch (error) {
+                } catch (error: unknown) {
                     console.error("Failed to save single player move:", error);
                 }
             }
@@ -238,7 +250,7 @@ export default function GameView() {
             if (connection && (state.gameMode === GameMode.SinglePlayer || state.gameMode === GameMode.OnlineMultiplayer)) {
                 try {
                     await connection.invoke('EndGameWithWinner');
-                } catch (error) {
+                } catch (error: unknown) {
                     console.error("Failed to update game end time:", error);
                 }
             }
@@ -285,7 +297,7 @@ export default function GameView() {
 
         try {
             // Convert board format for backend
-            const boardForBackend = currentBoard.map(row => 
+            const boardForBackend: BoardForBackend = currentBoard.map(row => 
                 row.map(cell => ({
                     mark: cell.mark,
                     latest: cell.latest
@@ -293,7 +305,7 @@ export default function GameView() {
             );
 
             // Request AI move from backend
-            const move = await connection.invoke<{row: number, col: number} | null>(
+            const move = await connection.invoke<AIMoveResponse>(
                 'RequestAIMove', 
                 {
                     board: boardForBackend,
@@ -330,7 +342,7 @@ export default function GameView() {
                 
                 return;
             }
-        } catch (error) {
+        } catch (error: unknown) {
             console.error("AI move error:", error);
             setError("AI move failed. Please try again.");
             setTurn({ mark: "X", latest: true });
@@ -384,16 +396,10 @@ export default function GameView() {
                             }
 
                             // Load game state (turns)
-                            const turns = await newConnection.invoke<Array<{
-                                turnNumber: number;
-                                posX: number;
-                                posY: number;
-                                isAI: boolean;
-                                mark: string;
-                            }>>('LoadGameState', state.gameId);
+                            const turns = await newConnection.invoke<TurnData[]>('LoadGameState', state.gameId);
 
                             // Restore game state using pure function
-                            const restoredState = restoreGameState(turns, true, checkForVictory, SIZE);
+                            const restoredState: RestoredGameState = restoreGameState(turns, true, checkForVictory, SIZE);
 
                             // Restore state
                             setBoard(restoredState.board);
@@ -412,7 +418,7 @@ export default function GameView() {
                             // Start new game
                             await newConnection.invoke('StartSinglePlayerGame', difficultyLevel);
                         }
-                    } catch (error) {
+                    } catch (error: unknown) {
                         console.error("Failed to start/continue single player game:", error);
                         setError("Failed to initialize game");
                     }
@@ -424,17 +430,10 @@ export default function GameView() {
                     if (state.isContinuing && state.gameId) {
                         try {
                             // Load game state (turns)
-                            const turns = await newConnection.invoke<Array<{
-                                turnNumber: number;
-                                posX: number;
-                                posY: number;
-                                isAI: boolean;
-                                mark: string;
-                                userId: number | null;
-                            }>>('LoadGameState', state.gameId);
+                            const turns = await newConnection.invoke<TurnData[]>('LoadGameState', state.gameId);
 
                             // Restore game state using pure function
-                            const restoredState = restoreGameState(turns, false, checkForVictory, SIZE);
+                            const restoredState: RestoredGameState = restoreGameState(turns, false, checkForVictory, SIZE);
 
                             // Restore state
                             setBoard(restoredState.board);
@@ -449,7 +448,7 @@ export default function GameView() {
                                 setGameOver(true);
                                 setError(`Player ${restoredState.winnerMark} wins!`);
                             }
-                        } catch (error) {
+                        } catch (error: unknown) {
                             console.error("Failed to load multiplayer game state:", error);
                             setError("Failed to load game state");
                         }
@@ -491,7 +490,7 @@ export default function GameView() {
                     });
                 }
             })
-            .catch(err => setError("Connection failed: " + err));
+            .catch((err: unknown) => setError("Connection failed: " + err));
 
         return () => {
             // clean up on unmount

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.SignalR;
 using System.Collections.Concurrent;
 using TicTacToe.Backend.AI;
 using TicTacToe.Backend.AI.Models;
+using TicTacToe.Backend.SignalR.Models;
 using TicTacToe.Data.DataAccess;
 using TicTacToe.Data.Models;
 
@@ -498,6 +499,11 @@ public class GameHub : Hub
 
     // -------------------- AI PLAYER --------------------
 
+    /// <summary>
+    /// Requests an AI move based on the current board state.
+    /// Request corresponds to frontend: AIMoveRequest = { board: BoardForBackend, difficulty: number }
+    /// Response corresponds to frontend: AIMoveResponse = { row: number, col: number } | null
+    /// </summary>
     public async Task<Move?> RequestAIMove(AIMoveRequest request)
     {
         if (request.Board.Length == 0)
@@ -624,26 +630,27 @@ public class GameHub : Hub
     /// <summary>
     /// Loads game state (turns) for a specific game.
     /// Returns list of turns with position and mark information.
+    /// Corresponds to frontend type: TurnData[]
     /// </summary>
-    public async Task<List<object>> LoadGameState(int gameId)
+    public async Task<List<TurnData>> LoadGameState(int gameId)
     {
         var username = Context.User?.Identity?.Name;
         if (username == null)
         {
-            return new List<object>();
+            return new List<TurnData>();
         }
 
         var game = gameDataAccess.GetGame(gameId);
         if (game == null)
         {
-            return new List<object>();
+            return new List<TurnData>();
         }
 
         // Verify the game belongs to the current user
         var user = userDataAccess.GetUser(username);
         if (user == null)
         {
-            return new List<object>();
+            return new List<TurnData>();
         }
 
         // For single player: user must be UserId
@@ -660,7 +667,7 @@ public class GameHub : Hub
 
         if (!isAuthorized)
         {
-            return new List<object>();
+            return new List<TurnData>();
         }
 
         var turns = gameDataAccess.GetGameTurns(gameId);
@@ -668,19 +675,19 @@ public class GameHub : Hub
         // Determine who is X and who is O
         // For single player: UserId is X, AI is O
         // For multiplayer: UserId is X, User2Id is O
-        return turns.Select(turn => new
+        return turns.Select(turn => new TurnData
         {
-            turnNumber = turn.TurnNumber,
-            posX = turn.PosX,
-            posY = turn.PosY,
-            isAI = turn.UserId == null, // null userId means AI move
-            userId = turn.UserId,
-            mark = turn.UserId == null 
+            TurnNumber = turn.TurnNumber,
+            PosX = turn.PosX,
+            PosY = turn.PosY,
+            IsAI = turn.UserId == null, // null userId means AI move
+            UserId = turn.UserId,
+            Mark = turn.UserId == null 
                 ? "O" // AI is O
                 : (game.Type == (int)GameType.SinglePlayer 
                     ? "X" // In single player, user is always X
                     : (turn.UserId == game.UserId ? "X" : "O")) // In multiplayer, UserId is X, User2Id is O
-        }).Cast<object>().ToList();
+        }).ToList();
     }
 
     /// <summary>
