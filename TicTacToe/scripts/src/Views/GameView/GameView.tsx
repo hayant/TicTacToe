@@ -24,6 +24,105 @@ export function createEmpty(size = SIZE): CellValue[][] {
     );
 }
 
+// Pure utility function to copy board with latest flags reset
+function copyBoard(sourceBoard: CellValue[][]): CellValue[][] {
+    return sourceBoard.map((r) => r.map(c => ({ mark: c.mark, latest: false })));
+}
+
+// Pure utility function to apply a move and check for victory
+function applyMoveAndCheckVictory(
+    currentBoard: CellValue[][],
+    row: number,
+    col: number,
+    mark: "X" | "O",
+    checkForVictoryFn: (board: CellValue[][], row: number, col: number) => [CellValue[][], boolean]
+): [CellValue[][], boolean] {
+    const next = copyBoard(currentBoard);
+    next[row][col] = { mark, latest: true };
+    return checkForVictoryFn(next, row, col);
+}
+
+// Pure utility function to restore game state from turns
+type TurnData = {
+    turnNumber: number;
+    posX: number;
+    posY: number;
+    mark: string;
+    isAI?: boolean;
+    userId?: number | null;
+};
+
+function restoreGameState(
+    turns: TurnData[],
+    isSinglePlayer: boolean,
+    checkForVictoryFn: (board: CellValue[][], row: number, col: number) => [CellValue[][], boolean],
+    boardSize: number
+): {
+    board: CellValue[][];
+    currentMark: "X" | "O";
+    turnCount: number;
+    hasVictory: boolean;
+    winnerMark?: string;
+} {
+    const restoredBoard = createEmpty(boardSize);
+
+    // Restore board from turns
+    for (const turn of turns) {
+        restoredBoard[turn.posY][turn.posX] = {
+            mark: turn.mark as "X" | "O",
+            latest: false
+        };
+    }
+
+    // Check for victory on the last move
+    let hasVictory = false;
+    let lastTurn: TurnData | null = null;
+    if (turns.length > 0) {
+        lastTurn = turns[turns.length - 1];
+        const [boardWithLatest, victory] = checkForVictoryFn(
+            restoredBoard.map(r => r.map(c => ({ ...c }))),
+            lastTurn.posY,
+            lastTurn.posX
+        );
+
+        if (victory) {
+            hasVictory = true;
+            // Use the board with victory highlights
+            for (let row = 0; row < boardSize; row++) {
+                for (let col = 0; col < boardSize; col++) {
+                    restoredBoard[row][col] = boardWithLatest[row][col];
+                }
+            }
+        } else {
+            // Mark the last move as latest if no victory
+            restoredBoard[lastTurn.posY][lastTurn.posX].latest = true;
+        }
+    }
+
+    // Determine current turn
+    let currentMark: "X" | "O" = "X"; // Default to X for new game
+    if (turns.length > 0 && lastTurn) {
+        if (isSinglePlayer) {
+            // In single player: if last turn was AI (O), next is X (human); if last turn was human (X), next is O (AI)
+            currentMark = lastTurn.isAI ? "X" : "O";
+        } else {
+            // In multiplayer: turns alternate: X, O, X, O, etc.
+            const lastMark = lastTurn.mark;
+            currentMark = lastMark === "X" ? "O" : "X";
+        }
+    }
+
+    const turnCount = turns.length || 1;
+
+    return {
+        board: restoredBoard,
+        currentMark,
+        turnCount,
+        hasVictory,
+        winnerMark: hasVictory ? (lastTurn?.mark || "X") : undefined
+    };
+}
+
 export default function GameView() {
     const [board, setBoard] = useState<CellValue[][]>(() => createEmpty());
     const [turn, setTurn] = useState<CellValue>({ mark: "X", latest: true}); // X or O
@@ -110,11 +209,8 @@ export default function GameView() {
 
         setError(null);
 
-        let next = board.map((r) => r.map(c => ({ mark: c.mark, latest: false })));
-        next[row][col] = { mark: turn.mark, latest: true };
-
-        let victory = false;
-        [next, victory] = checkForVictory(next, row, col);
+        // turn.mark is guaranteed to be "X" | "O" here due to earlier checks
+        const [next, victory] = applyMoveAndCheckVictory(board, row, col, turn.mark as "X" | "O", checkForVictory);
 
         setBoard(next);
 
@@ -180,7 +276,7 @@ export default function GameView() {
             setTurn(t => (t.mark === "X" ? { mark: "O", latest: true } : { mark: "X", latest: true }));
             setTurnCount(count => count + 1);
         }
-    }, [turn, board, state.gameMode, state.opponentUsername, connection, gameOver]);
+    }, [turn, board, state.gameMode, state.opponentUsername, connection, gameOver, checkForVictory]);
 
     const handleAIMove = useCallback(async (currentBoard: CellValue[][]) => {
         if (state.gameMode !== GameMode.SinglePlayer || gameOver || !connection) {
@@ -211,13 +307,8 @@ export default function GameView() {
                 return;
             }
 
-            // Apply the AI move
-            let next = currentBoard.map((r) => r.map(c => ({ mark: c.mark, latest: false })));
-            next[move.row][move.col] = { mark: "O", latest: true };
-
-            // Check for victory
-            let victory = false;
-            [next, victory] = checkForVictory(next, move.row, move.col);
+            // Apply the AI move and check for victory
+            const [next, victory] = applyMoveAndCheckVictory(currentBoard, move.row, move.col, "O", checkForVictory);
 
             setBoard(next);
             setError(null);
@@ -244,14 +335,11 @@ export default function GameView() {
             setError("AI move failed. Please try again.");
             setTurn({ mark: "X", latest: true });
         }
-    }, [state.gameMode, difficultyLevel, gameOver, connection]);
+    }, [state.gameMode, difficultyLevel, gameOver, connection, checkForVictory]);
 
     const handleOnlineOpponentMove = useCallback(async (row: number, col: number) => {
-        let next = board.map((r) => r.map(c => ({ mark: c.mark, latest: false })));
-        next[row][col] = { mark: turn.mark , latest: true };
-
-        let victory = false;
-        [next, victory] = checkForVictory(next, row, col);
+        if (!turn.mark) return;
+        const [next, victory] = applyMoveAndCheckVictory(board, row, col, turn.mark, checkForVictory);
 
         setBoard(next);
 
@@ -263,7 +351,7 @@ export default function GameView() {
 
         setTurn(t => (t.mark === "X" ? { mark: "O", latest: true } : { mark: "X", latest: true }));
         setTurnCount(count => count + 1);
-    }, [board, turn]);
+    }, [board, turn, checkForVictory]);
 
     useEffect(() => {
         // Create SignalR connection for both single player (AI) and online multiplayer
@@ -304,66 +392,21 @@ export default function GameView() {
                                 mark: string;
                             }>>('LoadGameState', state.gameId);
 
-                            // Restore board state from turns
-                            const restoredBoard = createEmpty();
-
-                            for (const turn of turns) {
-                                restoredBoard[turn.posY][turn.posX] = {
-                                    mark: turn.mark as "X" | "O",
-                                    latest: false
-                                };
-                            }
-
-                            // Check for victory on the last move
-                            let hasVictory = false;
-                            let lastTurn: {posY: number, posX: number, mark: string, isAI: boolean} | null = null;
-                            if (turns.length > 0) {
-                                lastTurn = turns[turns.length - 1];
-                                const [boardWithLatest, victory] = checkForVictory(
-                                    restoredBoard.map(r => r.map(c => ({ ...c }))),
-                                    lastTurn.posY,
-                                    lastTurn.posX
-                                );
-                                
-                                if (victory) {
-                                    hasVictory = true;
-                                    // Use the board with victory highlights
-                                    for (let row = 0; row < SIZE; row++) {
-                                        for (let col = 0; col < SIZE; col++) {
-                                            restoredBoard[row][col] = boardWithLatest[row][col];
-                                        }
-                                    }
-                                } else {
-                                    // Mark the last move as latest if no victory
-                                    restoredBoard[lastTurn.posY][lastTurn.posX].latest = true;
-                                }
-                            }
-
-                            // Determine current turn
-                            let currentMark: "X" | "O" = "X"; // Default to X (human) for new game
-                            if (turns.length > 0 && lastTurn) {
-                                // If last turn was AI (O), next is X (human)
-                                // If last turn was human (X), next is O (AI)
-                                currentMark = lastTurn.isAI ? "X" : "O";
-                            }
-                            
-                            // Calculate turn count: total number of moves made
-                            // Each move increments turnCount, so it's just the number of turns
-                            const turnCount = turns.length || 1;
+                            // Restore game state using pure function
+                            const restoredState = restoreGameState(turns, true, checkForVictory, SIZE);
 
                             // Restore state
-                            setBoard(restoredBoard);
-                            setTurn({ mark: currentMark, latest: true });
-                            setTurnCount(turnCount);
+                            setBoard(restoredState.board);
+                            setTurn({ mark: restoredState.currentMark, latest: true });
+                            setTurnCount(restoredState.turnCount);
                             
                             // Reset gameOver to false when continuing (unless there's a victory)
-                            if (!hasVictory) {
+                            if (!restoredState.hasVictory) {
                                 setGameOver(false);
                                 setError(null);
                             } else {
                                 setGameOver(true);
-                                const winnerMark = lastTurn?.mark || "X";
-                                setError(`Player ${winnerMark} wins!`);
+                                setError(`Player ${restoredState.winnerMark} wins!`);
                             }
                         } else {
                             // Start new game
@@ -390,66 +433,21 @@ export default function GameView() {
                                 userId: number | null;
                             }>>('LoadGameState', state.gameId);
 
-                            // Restore board state from turns
-                            const restoredBoard = createEmpty();
-
-                            for (const turn of turns) {
-                                restoredBoard[turn.posY][turn.posX] = {
-                                    mark: turn.mark as "X" | "O",
-                                    latest: false
-                                };
-                            }
-
-                            // Check for victory on the last move
-                            let hasVictory = false;
-                            let lastTurn: {posY: number, posX: number, mark: string, userId: number | null} | null = null;
-                            if (turns.length > 0) {
-                                lastTurn = turns[turns.length - 1];
-                                const [boardWithLatest, victory] = checkForVictory(
-                                    restoredBoard.map(r => r.map(c => ({ ...c }))),
-                                    lastTurn.posY,
-                                    lastTurn.posX
-                                );
-                                
-                                if (victory) {
-                                    hasVictory = true;
-                                    // Use the board with victory highlights
-                                    for (let row = 0; row < SIZE; row++) {
-                                        for (let col = 0; col < SIZE; col++) {
-                                            restoredBoard[row][col] = boardWithLatest[row][col];
-                                        }
-                                    }
-                                } else {
-                                    // Mark the last move as latest if no victory
-                                    restoredBoard[lastTurn.posY][lastTurn.posX].latest = true;
-                                }
-                            }
-
-                            // Determine current turn
-                            // In multiplayer, turns alternate: X, O, X, O, etc.
-                            let currentMark: "X" | "O" = "X"; // Default to X for new game
-                            if (turns.length > 0 && lastTurn) {
-                                // Determine next mark: if last was X, next is O; if last was O, next is X
-                                const lastMark = lastTurn.mark;
-                                currentMark = lastMark === "X" ? "O" : "X";
-                            }
-
-                            // Calculate turn count: total number of moves made
-                            const turnCount = turns.length || 1;
+                            // Restore game state using pure function
+                            const restoredState = restoreGameState(turns, false, checkForVictory, SIZE);
 
                             // Restore state
-                            setBoard(restoredBoard);
-                            setTurn({ mark: currentMark, latest: true });
-                            setTurnCount(turnCount);
+                            setBoard(restoredState.board);
+                            setTurn({ mark: restoredState.currentMark, latest: true });
+                            setTurnCount(restoredState.turnCount);
                             
                             // Reset gameOver to false when continuing (unless there's a victory)
-                            if (!hasVictory) {
+                            if (!restoredState.hasVictory) {
                                 setGameOver(false);
                                 setError(null);
                             } else {
                                 setGameOver(true);
-                                const winnerMark = lastTurn?.mark || "X";
-                                setError(`Player ${winnerMark} wins!`);
+                                setError(`Player ${restoredState.winnerMark} wins!`);
                             }
                         } catch (error) {
                             console.error("Failed to load multiplayer game state:", error);
@@ -462,10 +460,8 @@ export default function GameView() {
                         let victory = false;
                         
                         setBoard(prev => {
-                            let next = prev.map(r => r.map(c => ({ mark: c.mark, latest: false })));
-                            next[row][col] = { mark: opponentMark, latest: true };
-
-                            [next, victory] = checkForVictory(next, row, col);
+                            const [next, hasVictory] = applyMoveAndCheckVictory(prev, row, col, opponentMark, checkForVictory);
+                            victory = hasVictory;
 
                             if (victory) {
                                 setError(`Player ${opponentMark} wins!`);
