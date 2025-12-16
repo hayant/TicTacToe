@@ -114,17 +114,18 @@ public class GameDataAccess(TicTacToeDbContext database)
     }
 
     /// <summary>
-    /// Gets the latest unfinished multiplayer game between two users.
+    /// Gets the latest unfinished multiplayer game between two users where the inviter and invitee match.
     /// Returns null if no such game exists.
-    /// Checks both UserId/User2Id combinations to handle either player being the inviter.
+    /// Only matches games where inviterUserId is UserId and inviteeUserId is User2Id (not reversed).
+    /// This ensures that if roles are reversed (A invites B vs B invites A), it's treated as a new game.
     /// </summary>
-    public Game? GetUnfinishedMultiplayerGame(int userId1, int userId2)
+    public Game? GetUnfinishedMultiplayerGame(int inviterUserId, int inviteeUserId)
     {
         return database.Games
             .Where(g => g.Type == (int)GameType.TwoPlayerOnline
                 && g.EndTime == null
-                && ((g.UserId == userId1 && g.User2Id == userId2)
-                    || (g.UserId == userId2 && g.User2Id == userId1)))
+                && g.UserId == inviterUserId
+                && g.User2Id == inviteeUserId)
             .OrderByDescending(g => g.StartTime)
             .FirstOrDefault();
     }

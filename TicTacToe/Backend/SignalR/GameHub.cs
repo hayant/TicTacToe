@@ -179,18 +179,19 @@ public class GameHub : Hub
             gameId = continueGameId.Value;
             var game = gameDataAccess.GetGame(gameId);
             
-            // Verify the game exists, is unfinished, and belongs to these two players
+            // Verify the game exists, is unfinished, and roles match (requestingUser is UserId, acceptingUser is User2Id)
             if (game == null || game.EndTime != null)
             {
                 return; // Invalid game
             }
             
-            bool isValidGame = (game.UserId == requestingUser.Id && game.User2Id == acceptingUser.Id)
-                || (game.UserId == acceptingUser.Id && game.User2Id == requestingUser.Id);
+            // Only continue if roles match: requestingUser (inviter) is UserId, acceptingUser (invitee) is User2Id
+            // This ensures that if roles are reversed, it's treated as a new game
+            bool isValidGame = game.UserId == requestingUser.Id && game.User2Id == acceptingUser.Id;
             
             if (!isValidGame)
             {
-                return; // Game doesn't belong to these players
+                return; // Game doesn't match the role order (should start new game instead)
             }
 
             // Load turns to determine current game state
