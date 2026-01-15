@@ -1,6 +1,6 @@
 # TicTacToe Game
 
-A modern, full-stack TicTacToe game application featuring single-player AI opponents and real-time multiplayer gameplay. Built with ASP.NET Core and React, this application provides an engaging gaming experience with multiple game modes and difficulty levels.
+A modern, full-stack TicTacToe game application featuring single-player AI opponents and real-time multiplayer gameplay. Built with ASP.NET Core and React, this application provides an engaging gaming experience with multiple game modes and difficulty levels. Additionally, this project serves as an AI development practicing platform, offering opportunities to experiment with and improve AI algorithms, game logic, and full-stack development patterns.
 
 ## Features
 
