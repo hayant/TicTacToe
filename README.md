@@ -91,8 +91,9 @@ TicTacToe/
    cd TicTacToe
    dotnet restore
    dotnet build
-   dotnet run
+   dotnet run --launch-profile http   # serves at http://localhost:5296
    ```
+   Use `--launch-profile https` for HTTPS (https://localhost:7167).
 
 4. **Build the frontend** (in a separate terminal)
    ```bash
@@ -102,17 +103,32 @@ TicTacToe/
    ```
 
 5. **Access the application**
-   - Login page: `http://localhost:5000/login`
-   - Main application: `http://localhost:5000/app`
-   - API documentation: `http://localhost:5000/swagger`
+   - Login page: `http://localhost:5296/login`
+   - Main application: `http://localhost:5296/app`
+   - API documentation: `http://localhost:5296/swagger`
 
 ### Development
 
-For frontend development with hot reload:
+The backend serves the compiled frontend from `wwwroot` (`/app` and `/login`); there is no separate
+dev server. To run the two parts separately from the terminal, use two terminals:
+
+**Terminal 1 — backend**
+```bash
+cd TicTacToe
+dotnet run --launch-profile http        # http://localhost:5296
+```
+
+**Terminal 2 — frontend** (rebuild the bundles into `wwwroot`)
 ```bash
 cd TicTacToe/scripts
-npm start
+npx webpack --watch                     # rebuilds on every change
 ```
+Use `npm run build` instead for a one-off build. Then browse to the backend URL
+(`http://localhost:5296/login`) and refresh after changes — the backend serves the fresh bundles.
+
+> Note: `npm start` (webpack-dev-server) is not used in this project. Both webpack configs bind to the
+> same port and there is no proxy to the backend API/SignalR, so the app is always served through the
+> backend (port 5296), not port 3000.
 
 ## Testing
 
