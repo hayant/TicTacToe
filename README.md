@@ -17,10 +17,12 @@ A modern, full-stack TicTacToe game application featuring single-player AI oppon
 ### AI Opponent
 The AI opponent uses advanced algorithms including:
 - Minimax with alpha-beta pruning for optimal move selection
-- Transposition tables for performance optimization
-- Zobrist hashing for efficient board state evaluation
+- Iterative deepening governed by a per-move time budget
+- Transposition table with bound flags (exact/lower/upper) and best-move ordering
+- 64-bit Zobrist hashing for efficient board state identification
 - Threat detection and blocking strategies
 - Five difficulty levels (1-5) with adjustable search depth and candidate evaluation
+- Thread-safe by design: each request runs on isolated search state, safe under concurrent SignalR calls
 
 ### User Features
 - **Authentication**: Secure user registration and login system
@@ -30,11 +32,12 @@ The AI opponent uses advanced algorithms including:
 ## Technology Stack
 
 ### Backend
-- **.NET 9.0**: Modern C# web framework
+- **.NET 10.0**: Modern C# web framework (latest LTS)
 - **ASP.NET Core**: Web API and SignalR for real-time communication
 - **Entity Framework Core**: Database ORM with SQL Server
 - **SignalR**: Real-time bidirectional communication for multiplayer
 - **Swagger/OpenAPI**: API documentation
+- **xUnit**: Unit tests for the AI engine
 
 ### Frontend
 - **React 19**: Modern UI library
@@ -60,13 +63,14 @@ TicTacToe/
 ├── TicTacToe.Data/        # Data access layer
 │   ├── DataAccess/        # Database operations
 │   └── Models/            # Data models
+├── TicTacToe.Tests/       # xUnit test project (AI engine)
 └── Migrations/            # Entity Framework migrations
 ```
 
 ## Getting Started
 
 ### Prerequisites
-- .NET 9.0 SDK
+- .NET 10.0 SDK
 - Node.js and npm
 - SQL Server (or SQL Server Express)
 
@@ -109,6 +113,23 @@ For frontend development with hot reload:
 cd TicTacToe/scripts
 npm start
 ```
+
+## Testing
+
+Unit tests for the AI engine live in `TicTacToe.Tests` (xUnit). They cover taking an immediate
+win, blocking the opponent's immediate win, board immutability after a search (Apply/Undo and
+Zobrist hash stability), deterministic results across repeated calls, and graceful behavior under a
+tiny time budget.
+
+Run them from the repository root:
+```bash
+dotnet test
+```
+
+## Continuous Integration
+
+A GitHub Actions workflow (`.github/workflows/main_tictactoe.yml`) builds the frontend and backend,
+runs the test suite, and publishes the app. It is also configured to deploy to Azure App Service.
 
 ## API Documentation
 
