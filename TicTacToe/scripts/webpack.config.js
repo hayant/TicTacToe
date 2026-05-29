@@ -1,79 +1,42 @@
 const path = require("path");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 
-module.exports = [
-    {
-        entry: "./src/Views/MainMenu/index.tsx",
-        mode: "development",
-        output: {
-            filename: "bundle.js",
-            path: path.resolve(__dirname, "../wwwroot/app"),
-            clean: true,
-            publicPath: "/app"
-        },
-        resolve: {
-            extensions: [".tsx", ".ts", ".js"],
-        },
-        devtool: "source-map",
-        module: {
-            rules: [
-                {
-                    test: /\.tsx?$/,
-                    use: "ts-loader",
-                    exclude: /node_modules/,
-                }, 
-                {
-                    test: /\.css$/,
-                    use: ["style-loader", "css-loader"],
-                },
-            ],
-        },
-        plugins: [
-            new HtmlWebpackPlugin({
-                template: "src/Views/MainMenu/index.html",
-            }),
-        ],
-        devServer: {
-            static: "./dist",
-            port: 3000,
-            open: true,
-        },
+// Single-entry SPA: one bundle served from wwwroot root. The React Router app
+// (src/Views/MainMenu/App.tsx) handles the login view and all /app* routes.
+module.exports = {
+    entry: "./src/Views/MainMenu/index.tsx",
+    mode: "development",
+    output: {
+        filename: "bundle.js",
+        path: path.resolve(__dirname, "../wwwroot"),
+        clean: true,
+        publicPath: "/",
     },
-    {
-        entry: "./src/Views/LoginForm/index.tsx",
-        mode: "development",
-        output: {
-            filename: "bundle.js",
-            path: path.resolve(__dirname, "../wwwroot/login"),
-            clean: true,
-            publicPath: "/login"
-        },
-        resolve: {
-            extensions: [".tsx", ".ts", ".js"],
-        },
-        devtool: "source-map",
-        module: {
-            rules: [
-                {
-                    test: /\.tsx?$/,
-                    use: "ts-loader",
-                    exclude: /node_modules/,
-                },
-                {
-                    test: /\.css$/,
-                    use: ["style-loader", "css-loader"],
-                },
-            ],
-        },
-        plugins: [
-            new HtmlWebpackPlugin({
-                template: "src/Views/LoginForm/index.html",
-            }),
+    resolve: {
+        extensions: [".tsx", ".ts", ".js"],
+    },
+    devtool: "source-map",
+    module: {
+        rules: [
+            {
+                test: /\.tsx?$/,
+                use: "ts-loader",
+                exclude: /node_modules/,
+            },
+            {
+                test: /\.css$/,
+                use: ["style-loader", "css-loader"],
+            },
         ],
-        devServer: {
-            static: "./dist",
-            port: 3000,
-            open: true,
-        },
-    }
-];
+    },
+    plugins: [
+        new HtmlWebpackPlugin({
+            template: "src/Views/MainMenu/index.html",
+        }),
+    ],
+    devServer: {
+        static: path.resolve(__dirname, "../wwwroot"),
+        port: 3000,
+        open: true,
+    },
+};

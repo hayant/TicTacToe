@@ -4,15 +4,21 @@ import {BrowserRouter, Route, Routes} from "react-router";
 import GameView from "../GameView/GameView";
 import LoginForm from "../LoginForm/LoginForm";
 import OnlineLobbyView from "../OnlineLobby/OnlineLobbyView";
+import RequireAuth from "../RequireAuth";
 
 function App() {
     return (
         <BrowserRouter>
             <Routes>
                 <Route path="/" element={<LoginForm />} />
-                <Route path="/app" element={<MainMenu />} />
-                <Route path="/app/game" element={<GameView />} />
-                <Route path="/app/online" element={<OnlineLobbyView />} />
+                {/* Alias so stale /login links (e.g. cookie ReturnUrl) still resolve */}
+                <Route path="/login" element={<LoginForm />} />
+                {/* All /app* routes require an authenticated session */}
+                <Route element={<RequireAuth />}>
+                    <Route path="/app" element={<MainMenu />} />
+                    <Route path="/app/game" element={<GameView />} />
+                    <Route path="/app/online" element={<OnlineLobbyView />} />
+                </Route>
                 <Route path="*" element={<h2>Not found</h2>} />
             </Routes>
         </BrowserRouter>

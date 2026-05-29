@@ -1,10 +1,11 @@
 import React, { useCallback } from "react";
 import {HttpHelpers} from "../../Helpers/HttpHelpers";
-import {Navigate} from "react-router";
+import {useNavigate} from "react-router";
 import { Button, TextField, Box, Stack, Typography, Paper } from "@mui/material";
 import {LoginModel} from "../../Data/DataObjects";
 
 const LoginForm = () => {
+    const navigate = useNavigate();
     const [username, setUsername] = React.useState("");
     const [password, setPassword] = React.useState("");
     const [password2, setPassword2] = React.useState("");
@@ -29,7 +30,7 @@ const LoginForm = () => {
         }
         
         HttpHelpers.makeRequest("api/Login/login", "POST", loginData)
-            .then(() => window.location.href = "/app")
+            .then(() => navigate("/app"))
             .catch(err => setError(err.message));
     }
 

@@ -1,11 +1,9 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.Extensions.FileProviders;
 using Microsoft.EntityFrameworkCore;
 using TicTacToe.Backend.SignalR;
 using TicTacToe.Data;
 using TicTacToe.Data.DataAccess;
-using Microsoft.OpenApi.Models;
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
     Args = args,
@@ -27,10 +25,35 @@ builder.Services.AddScoped<TicTacToe.Data.DataAccess.GameDataAccess>();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
-        options.LoginPath = "/login";
-        options.AccessDeniedPath = "/login";
+        // The SPA renders its login view at "/" (there is no separate /login page).
+        options.LoginPath = "/";
+        options.AccessDeniedPath = "/";
         options.ExpireTimeSpan = TimeSpan.FromHours(1);
         options.SlidingExpiration = true;
+
+        // For API/XHR requests, return a status code instead of redirecting to an
+        // HTML page, so the SPA can react to auth failures itself (fetch would
+        // otherwise follow the redirect and receive index.html instead of JSON).
+        options.Events.OnRedirectToLogin = context =>
+        {
+            if (context.Request.Path.StartsWithSegments("/api"))
+            {
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                return Task.CompletedTask;
+            }
+            context.Response.Redirect(context.RedirectUri);
+            return Task.CompletedTask;
+        };
+        options.Events.OnRedirectToAccessDenied = context =>
+        {
+            if (context.Request.Path.StartsWithSegments("/api"))
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                return Task.CompletedTask;
+            }
+            context.Response.Redirect(context.RedirectUri);
+            return Task.CompletedTask;
+        };
     });
 
 builder.Services.AddAuthorization();
@@ -48,27 +71,8 @@ using (var scope = app.Services.CreateScope())
     db.Database.Migrate();
 }
 
-var rootPath = Path.Combine(app.Environment.ContentRootPath, "wwwroot");
-
-var appPath = Path.Combine(rootPath, "app");
-if (Directory.Exists(appPath))
-{
-    app.UseStaticFiles(new StaticFileOptions
-    {
-        FileProvider = new PhysicalFileProvider(appPath),
-        RequestPath = "/app"
-    });
-}
-
-var loginPath = Path.Combine(rootPath, "login");
-if (Directory.Exists(loginPath))
-{
-    app.UseStaticFiles(new StaticFileOptions
-    {
-        FileProvider = new PhysicalFileProvider(loginPath),
-        RequestPath = "/login"
-    });
-}
+// Single-page app served from wwwroot (index.html + bundle.js at the root).
+app.UseStaticFiles();
 
 app.UseRouting();
 app.UseAuthentication();
@@ -84,13 +88,8 @@ app.UseSwaggerUI(c =>
 app.MapControllers();
 app.MapHub<GameHub>("/gameHub").RequireAuthorization();
 
-app.MapGet("/", context =>
-{
-    context.Response.Redirect("/login");
-    return Task.CompletedTask;
-});
-
-app.MapFallbackToFile("/login/{*path:nonfile}", "login/index.html");
-app.MapFallbackToFile("/app/{*path:nonfile}", "app/index.html").RequireAuthorization();
+// SPA fallback: any non-file route serves index.html; the client-side
+// router (and RequireAuth guard) takes over from there.
+app.MapFallbackToFile("index.html");
 
 app.Run();
