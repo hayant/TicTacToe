@@ -23,35 +23,42 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'     # or whatever you use locally
+          cache: 'npm'
+          cache-dependency-path: TicTacToe/scripts/package-lock.json
 
       - name: Install frontend dependencies
         working-directory: TicTacToe/scripts
-        run: |
-          npm install
-          npm ci
+        run: npm ci
 
       - name: Build frontend with Webpack
         working-directory: TicTacToe/scripts
         run: npm run build
 
-      #- name: Copy frontend build output
-      #  run: |
-      #    mkdir -p TicTacToe/wwwroot/app
-      #    cp -r frontend/dist/* TicTacToe/wwwroot/app/
-      #    mkdir -p TicTacToe/wwwroot/login
-      #    cp -r frontend/dist/* TicTacToe/wwwroot/login/
-          
       # Backend
       - name: Set up .NET Core
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.x'
+          dotnet-version: '10.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore dependencies
+        run: dotnet restore
 
       - name: Build with dotnet
-        run: dotnet build --configuration Release
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Test with dotnet
+        run: dotnet test --configuration Release --no-build --verbosity normal
 
       - name: dotnet publish
-        run: dotnet publish -c Release -o ${{env.DOTNET_ROOT}}/myapp
+        run: dotnet publish TicTacToe/TicTacToe.csproj -c Release -o ${{env.DOTNET_ROOT}}/myapp --no-restore
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4

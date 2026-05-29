@@ -8,8 +8,7 @@ public static class Cryptography
     public static (string Hash, string Salt) HashPassword(string password)
     {
         byte[] salt = RandomNumberGenerator.GetBytes(16); // 128-bit salt
-        var pbkdf2 = new Rfc2898DeriveBytes(password, salt, 100_000, HashAlgorithmName.SHA256);
-        byte[] hash = pbkdf2.GetBytes(32); // 256-bit hash
+        byte[] hash = Rfc2898DeriveBytes.Pbkdf2(password, salt, 100_000, HashAlgorithmName.SHA256, 32); // 256-bit hash
 
         return (Convert.ToBase64String(hash), Convert.ToBase64String(salt));
     }
@@ -17,9 +16,10 @@ public static class Cryptography
     public static bool VerifyPassword(string password, string storedHash, string storedSalt)
     {
         byte[] salt = Convert.FromBase64String(storedSalt);
-        var pbkdf2 = new Rfc2898DeriveBytes(password, salt, 100_000, HashAlgorithmName.SHA256);
-        byte[] hash = pbkdf2.GetBytes(32);
+        byte[] expectedHash = Convert.FromBase64String(storedHash);
+        byte[] hash = Rfc2898DeriveBytes.Pbkdf2(password, salt, 100_000, HashAlgorithmName.SHA256, 32);
 
-        return Convert.ToBase64String(hash) == storedHash;
+        // Constant-time comparison -> does not leak information through timing (timing attack).
+        return CryptographicOperations.FixedTimeEquals(hash, expectedHash);
     }
 }
