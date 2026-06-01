@@ -59,3 +59,4 @@ nunit-*.xml
 TicTacToe/node_modules
 
 TicTacToe.sln.DotSettings.user
+.DS_Store

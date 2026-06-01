@@ -9,35 +9,20 @@
     "@microsoft/signalr": "^9.0.6",
     "@mui/icons-material": "^7.3.4",
     "@mui/material": "^7.3.4",
-    "@testing-library/dom": "^10.4.1",
-    "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.0",
-    "@testing-library/user-event": "^13.5.0",
-    "@types/jest": "^27.5.2",
     "@types/node": "^16.18.126",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router": "^7.9.4",
-    "react-scripts": "5.0.1",
-    "typescript": "^5.9.3",
-    "web-vitals": "^2.1.4"
+    "typescript": "^5.9.3"
   },
   "overrides": {
     "typescript": "^5.9.3"
   },
   "scripts": {
     "start": "webpack serve --open",
-    "build": "webpack",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
+    "build": "webpack"
   },
   "browserslist": {
     "production": [
@@ -52,15 +37,17 @@
     ]
   },
   "devDependencies": {
+    "css-loader": "^7.1.4",
     "html-webpack-plugin": "^5.6.4",
     "openapi-typescript": "^7.10.1",
+    "style-loader": "^4.0.0",
     "ts-loader": "^9.5.4",
     "typescript": "^5.9.3",
     "webpack": "^5.102.1",
     "webpack-cli": "^6.0.1",
     "webpack-dev-server": "^5.2.2"
   },
-  "description": "This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).",
+  "description": "TicTacToe (Gomoku) frontend — React + TypeScript, bundled with Webpack.",
   "main": "webpack.config.js",
   "keywords": [],
   "author": "",
