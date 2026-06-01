@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using TicTacToe.Backend.SignalR;
 using TicTacToe.Data;
@@ -70,6 +71,18 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<TicTacToeDbContext>();
     db.Database.Migrate();
 }
+
+// Behind the Azure Container Apps ingress, TLS is terminated at the edge and the
+// container receives plain HTTP. Honour the X-Forwarded-* headers so the app sees the
+// original scheme/IP. KnownNetworks/KnownProxies are cleared because the proxy is not
+// loopback. Locally (no proxy, no forwarded headers) this is a no-op.
+var forwardedHeadersOptions = new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+};
+forwardedHeadersOptions.KnownIPNetworks.Clear();
+forwardedHeadersOptions.KnownProxies.Clear();
+app.UseForwardedHeaders(forwardedHeadersOptions);
 
 // Single-page app served from wwwroot (index.html + bundle.js at the root).
 app.UseStaticFiles();
