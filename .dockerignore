@@ -1,0 +1,22 @@
+# Build outputs
+**/bin
+**/obj
+**/wwwroot
+
+# Node
+**/node_modules
+
+# Test project (not needed in the runtime image)
+TicTacToe.Tests
+
+# VCS / IDE / OS
+.git
+.github
+.idea
+.vs
+**/*.user
+**/.DS_Store
+
+# Misc
+temp
+HANDOFF.md

@@ -4,6 +4,9 @@
         <TargetFramework>net10.0</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
+        <!-- Frontend source lives in scripts/ and is bundled by Webpack into wwwroot.
+             Keep it out of the .NET item globs so it is not published into the runtime image. -->
+        <DefaultItemExcludes>$(DefaultItemExcludes);scripts\**</DefaultItemExcludes>
     </PropertyGroup>
 
     <ItemGroup>

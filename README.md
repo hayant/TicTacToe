@@ -126,9 +126,8 @@ npx webpack --watch                     # rebuilds on every change
 Use `npm run build` instead for a one-off build. Then browse to the backend URL
 (`http://localhost:5296/login`) and refresh after changes — the backend serves the fresh bundles.
 
-> Note: `npm start` (webpack-dev-server) is not used in this project. Both webpack configs bind to the
-> same port and there is no proxy to the backend API/SignalR, so the app is always served through the
-> backend (port 5296), not port 3000.
+> Note: `npm start` (webpack-dev-server) is not used in this project. There is no dev-server proxy to
+> the backend API/SignalR, so the app is always served through the backend (port 5296), not port 3000.
 
 ## Testing
 
@@ -142,10 +141,37 @@ Run them from the repository root:
 dotnet test
 ```
 
-## Continuous Integration
+## Docker
 
-A GitHub Actions workflow (`.github/workflows/main_tictactoe.yml`) builds the frontend and backend,
-runs the test suite, and publishes the app. It is also configured to deploy to Azure App Service.
+A multi-stage [`Dockerfile`](Dockerfile) builds the whole app into a single image: a Node stage
+bundles the frontend, a .NET SDK stage publishes the backend (embedding the bundled frontend in
+`wwwroot`), and the final stage runs on the lightweight `aspnet` runtime.
+
+```bash
+# Build the image
+docker build -t tictactoe:local .
+
+# Run it (provide a SQL Server connection string; the app migrates on startup)
+docker run -p 8080:8080 \
+  -e "ConnectionStrings__DefaultConnection=<your connection string>" \
+  tictactoe:local
+```
+
+The app listens on port 8080 inside the container.
+
+## Continuous Integration / Deployment
+
+A GitHub Actions workflow (`.github/workflows/main_tictactoe.yml`) runs three jobs:
+
+1. **build-test** — builds the frontend and backend and runs the test suite (also on pull requests).
+2. **docker** — builds the image and pushes it to GitHub Container Registry
+   (`ghcr.io/<owner>/<repo>`).
+3. **deploy** — logs in to Azure via **OIDC federated credentials** (no long-lived secret) and updates
+   an Azure Container App with the new image.
+
+The deploy job only runs when the repository variable `DEPLOY_ENABLED` is `true`, and expects the
+secrets `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` and the variables
+`AZURE_RESOURCE_GROUP`, `AZURE_CONTAINER_APP` to be configured.
 
 ## API Documentation
 
