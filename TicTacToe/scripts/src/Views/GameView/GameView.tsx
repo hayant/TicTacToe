@@ -6,8 +6,11 @@ import {useLocation, useNavigate} from "react-router";
 import {CellValue} from "../../Data/CellValue";
 import {GameMode} from "../../Data/GameMode";
 import { HubConnection, HubConnectionBuilder } from '@microsoft/signalr';
+import ChatPanel, { ChatMessage } from "../Components/ChatPanel";
 
 const SIZE = 20;
+const BOARD_WIDTH = SIZE * 30; // 20 cells * 30px cell size
+const ONLINE_VIEW_WIDTH = 1200; // = MUI Container "lg" max-width; the current max toolbar width
 
 export type GameViewProps = {
     gameMode: GameMode;
@@ -144,6 +147,8 @@ export default function GameView() {
     const [error, setError] = useState<string | null>(null);
     const [gameOver, setGameOver] = useState(false);
     const [connection, setConnection] = useState<HubConnection | null>(null);
+    const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+    const [chatInput, setChatInput] = useState('');
 
     const navigate = useNavigate();
     const location = useLocation();
@@ -488,6 +493,10 @@ export default function GameView() {
                         setError("Opponent has left the game");
                         setGameOver(true);
                     });
+
+                    newConnection.on('ReceiveGameMessage', (user: string, message: string) => {
+                        setChatMessages(prev => [...prev, { user, message, timestamp: new Date() }]);
+                    });
                 }
             })
             .catch((err: unknown) => setError("Connection failed: " + err));
@@ -497,7 +506,8 @@ export default function GameView() {
             if (state.gameMode === GameMode.OnlineMultiplayer) {
                 newConnection.off('OpponentMove');
                 newConnection.off('OpponentQuit');
-                
+                newConnection.off('ReceiveGameMessage');
+
                 if (newConnection.state === 'Connected') {
                     newConnection.invoke('OpponentQuit').finally(() => newConnection.stop());
                 } else {
@@ -546,6 +556,18 @@ export default function GameView() {
         setGameTime("00:00:00");
     };
 
+    const sendChatMessage = useCallback(async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (connection && chatInput.trim()) {
+            try {
+                await connection.invoke("SendGameMessage", chatInput.trim());
+                setChatInput("");
+            } catch (err) {
+                console.error("Failed to send chat message:", err);
+            }
+        }
+    }, [connection, chatInput]);
+
     const handleQuit = useCallback(() => {
         if (state.gameMode === GameMode.OnlineMultiplayer && connection) {
             connection.invoke('OpponentQuit')
@@ -556,8 +578,16 @@ export default function GameView() {
         }
     }, [connection, state.gameMode, navigate]);
 
+    const isOnline = state.gameMode === GameMode.OnlineMultiplayer;
+
     return (
-        <Container sx={{ width: "100%", alignContent: "center", justifyContent: "center", display: "flex" }}>
+        <Container
+            disableGutters={isOnline}
+            maxWidth={isOnline ? false : undefined}
+            sx={isOnline
+                ? { width: ONLINE_VIEW_WIDTH, minWidth: ONLINE_VIEW_WIDTH, mx: "auto", display: "flex" }
+                : { width: "100%", alignContent: "center", justifyContent: "center", display: "flex" }}
+        >
             <Stack width="100%" justifyContent="center" alignContent="center">
                 <AppBar
                     position="static"
@@ -606,7 +636,22 @@ export default function GameView() {
                         </Button>
                     </Toolbar>
                 </AppBar>
-                <Grid size={SIZE} values={board} onCellClick={handleCellClick} />
+                {isOnline ? (
+                    <Box sx={{ display: "flex", gap: "10px", alignItems: "stretch", width: "100%" }}>
+                        <Box sx={{ flex: `0 0 ${BOARD_WIDTH}px` }}>
+                            <Grid size={SIZE} values={board} onCellClick={handleCellClick} />
+                        </Box>
+                        <ChatPanel
+                            messages={chatMessages}
+                            messageInput={chatInput}
+                            onMessageInputChange={setChatInput}
+                            onSendMessage={sendChatMessage}
+                            sx={{ flexGrow: 1, minWidth: 0 }}
+                        />
+                    </Box>
+                ) : (
+                    <Grid size={SIZE} values={board} onCellClick={handleCellClick} />
+                )}
                 <Typography
                     // justifyContent="center"
                     sx={{

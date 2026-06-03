@@ -25,6 +25,17 @@ public class GameHub : Hub
     private static readonly ConcurrentDictionary<string, int> UserPairToGameId
         = new(StringComparer.OrdinalIgnoreCase);
 
+    // username -> the gameId of their current game. Keyed by username (not connectionId) so it
+    // survives the lobby->game reconnection, where the game view opens a brand-new SignalR
+    // connection with a different connectionId.
+    private static readonly ConcurrentDictionary<string, int> UserToGameId
+        = new(StringComparer.OrdinalIgnoreCase);
+
+    // gameId -> the two players' usernames. Used to route moves/quits/chat to the actual
+    // opponent rather than guessing "any other connected user" (which breaks with 3+ users online).
+    private static readonly ConcurrentDictionary<int, (string Player1, string Player2)> GameToPlayers
+        = new();
+
     // gameId -> turn state (turn number, current mark, turn start time)
     private class TurnState
     {
@@ -113,6 +124,30 @@ public class GameHub : Hub
                        ?? throw new InvalidOperationException("User not authenticated");
 
         await Clients.All.SendAsync("ReceiveMessage", username, message);
+    }
+
+    /// <summary>
+    /// Sends an in-game chat message privately to the opponent (and echoes it back to
+    /// the sender). Used by the online two-player game view so messages stay within the match.
+    /// </summary>
+    public async Task SendGameMessage(string message)
+    {
+        var username = Context.User?.Identity?.Name;
+        if (username == null) return;
+
+        // Echo back to the sender so their own message shows up immediately
+        await Clients.Caller.SendAsync("ReceiveGameMessage", username, message);
+
+        // Deliver only to this game's actual opponent (private, match-scoped chat)
+        string? opponent = GetOpponentForUser(username);
+        if (opponent != null)
+        {
+            var opponentConn = GetAnyConnectionForUser(opponent);
+            if (opponentConn != null)
+            {
+                await Clients.Client(opponentConn).SendAsync("ReceiveGameMessage", username, message);
+            }
+        }
     }
 
     // -------------------- GAME REQUESTS --------------------
@@ -244,7 +279,12 @@ public class GameHub : Hub
                     ? $"{requestingPlayer}|{acceptingPlayer}"
                     : $"{acceptingPlayer}|{requestingPlayer}";
                 UserPairToGameId[userPairKey] = gameId;
-                
+
+                // Map both players (by username) to this game so moves/chat route to the real opponent
+                UserToGameId[requestingPlayer] = gameId;
+                UserToGameId[acceptingPlayer] = gameId;
+                GameToPlayers[gameId] = (requestingPlayer, acceptingPlayer);
+
                 // Restore or update turn state for the game
                 GameTurnStates.AddOrUpdate(gameId,
                     new TurnState
@@ -287,7 +327,12 @@ public class GameHub : Hub
                     ? $"{requestingPlayer}|{acceptingPlayer}"
                     : $"{acceptingPlayer}|{requestingPlayer}";
                 UserPairToGameId[userPairKey] = gameId;
-                
+
+                // Map both players (by username) to this game so moves/chat route to the real opponent
+                UserToGameId[requestingPlayer] = gameId;
+                UserToGameId[acceptingPlayer] = gameId;
+                GameToPlayers[gameId] = (requestingPlayer, acceptingPlayer);
+
                 // Initialize turn state for the game
                 GameTurnStates.TryAdd(gameId, new TurnState
                 {
@@ -343,28 +388,34 @@ public class GameHub : Hub
                 return gameId;
             }
 
-            // Try to find by username pair for online multiplayer
+            // The game view opens a fresh connection (new connectionId) that was never registered
+            // at accept time, so resolve by username, which is stable across that reconnection.
             var username = Context.User?.Identity?.Name;
-            if (username != null)
+            if (username != null && UserToGameId.TryGetValue(username, out var userGameId))
             {
-                var opponent = ConnectedUsers.Keys
-                    .FirstOrDefault(name => !name.Equals(username, StringComparison.OrdinalIgnoreCase));
-
-                if (opponent != null)
-                {
-                    var userPairKey = string.Compare(username, opponent, StringComparison.OrdinalIgnoreCase) < 0
-                        ? $"{username}|{opponent}"
-                        : $"{opponent}|{username}";
-
-                    if (UserPairToGameId.TryGetValue(userPairKey, out var pairGameId))
-                    {
-                        // Also store for this connection for future calls
-                        ConnectionToGameId[Context.ConnectionId] = pairGameId;
-                        return pairGameId;
-                    }
-                }
+                // Cache for this connection so subsequent calls hit the fast path
+                ConnectionToGameId[Context.ConnectionId] = userGameId;
+                return userGameId;
             }
 
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Returns the username of the given user's opponent in their current game, or null if there
+    /// is no active game. Routes by the recorded game pair instead of guessing "any other connected
+    /// user", which is wrong as soon as a third user is online (e.g. idling in the lobby).
+    /// </summary>
+    private string? GetOpponentForUser(string username)
+    {
+        lock (Locker)
+        {
+            if (!UserToGameId.TryGetValue(username, out var gameId)) return null;
+            if (!GameToPlayers.TryGetValue(gameId, out var players)) return null;
+
+            if (players.Player1.Equals(username, StringComparison.OrdinalIgnoreCase)) return players.Player2;
+            if (players.Player2.Equals(username, StringComparison.OrdinalIgnoreCase)) return players.Player1;
             return null;
         }
     }
@@ -450,10 +501,8 @@ public class GameHub : Hub
         var username = Context.User?.Identity?.Name;
         if (username == null) return;
 
-        // Find opponent = any user except me
-        string? opponent = ConnectedUsers.Keys
-            .FirstOrDefault(name => !name.Equals(username, StringComparison.OrdinalIgnoreCase));
-
+        // Route to this game's actual opponent (not just any other connected user)
+        string? opponent = GetOpponentForUser(username);
         if (opponent == null) return;
 
         var opponentConn = GetAnyConnectionForUser(opponent);
@@ -481,8 +530,7 @@ public class GameHub : Hub
             return;
         }
 
-        string? opponent = ConnectedUsers.Keys
-            .FirstOrDefault(name => !name.Equals(username, StringComparison.OrdinalIgnoreCase));
+        string? opponent = GetOpponentForUser(username);
 
         if (opponent == null)
         {
@@ -594,26 +642,12 @@ public class GameHub : Hub
             {
                 gameId = connGameId;
             }
-            else
+            else if (UserToGameId.TryGetValue(username, out var userGameId))
             {
-                // If not found by connection, try to find by username pair
-                // Find opponent username
-                var opponent = ConnectedUsers.Keys
-                    .FirstOrDefault(name => !name.Equals(username, StringComparison.OrdinalIgnoreCase));
-
-                if (opponent != null)
-                {
-                    var userPairKey = string.Compare(username, opponent, StringComparison.OrdinalIgnoreCase) < 0
-                        ? $"{username}|{opponent}"
-                        : $"{opponent}|{username}";
-                    
-                    if (UserPairToGameId.TryGetValue(userPairKey, out var pairGameId))
-                    {
-                        gameId = pairGameId;
-                        // Also store for this connection for future calls
-                        ConnectionToGameId[Context.ConnectionId] = pairGameId;
-                    }
-                }
+                // The game connection wasn't registered at accept time; resolve by username
+                gameId = userGameId;
+                // Also store for this connection for future calls
+                ConnectionToGameId[Context.ConnectionId] = userGameId;
             }
         }
 
