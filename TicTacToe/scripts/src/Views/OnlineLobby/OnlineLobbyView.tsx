@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     Box,
     Button,
@@ -10,7 +10,6 @@ import {
     List,
     ListItem,
     Paper,
-    TextField,
     Typography
 } from '@mui/material';
 
@@ -20,12 +19,7 @@ import { Authorization } from "../../Helpers/Authorization";
 import { GameMode } from "../../Data/GameMode";
 import { GameViewProps } from "../GameView/GameView";
 import { HttpHelpers } from "../../Helpers/HttpHelpers";
-
-interface ChatMessage {
-    user: string;
-    message: string;
-    timestamp: Date;
-}
+import ChatPanel, { ChatMessage } from "../Components/ChatPanel";
 
 export default function OnlineLobbyView() {
     const [connection, setConnection] = useState<HubConnection | null>(null);
@@ -42,7 +36,6 @@ export default function OnlineLobbyView() {
     const [pendingTargetPlayer, setPendingTargetPlayer] = useState<string | null>(null);
 
     const navigate = useNavigate();
-    const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
     Authorization.checkAuthentication(setCurrentUser);
 
@@ -152,14 +145,6 @@ export default function OnlineLobbyView() {
         };
 
     }, [connection, navigate]);
-
-    //
-    // Auto scroll chat messages
-    //
-    useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [messages]);
-
 
     // ------------- ACTION HANDLERS -----------------
 
@@ -312,32 +297,13 @@ export default function OnlineLobbyView() {
                 </Paper>
 
                 {/* CHAT PANEL */}
-                <Paper sx={{ width: '75%', p: 2, display: 'flex', flexDirection: 'column' }}>
-                    <Box sx={{ flexGrow: 1, overflowY: 'auto', mb: 2 }}>
-                        {messages.map((msg, index) => (
-                            <Box key={index} sx={{ mb: 1 }}>
-                                <Typography variant="caption" color="textSecondary">
-                                    {msg.timestamp.toLocaleTimeString()}
-                                </Typography>
-                                <Typography>
-                                    <strong>{msg.user}:</strong> {msg.message}
-                                </Typography>
-                            </Box>
-                        ))}
-                        <div ref={messagesEndRef} />
-                    </Box>
-
-                    <form onSubmit={sendMessage} style={{ display: "flex", gap: 8 }}>
-                        <TextField
-                            fullWidth
-                            value={messageInput}
-                            onChange={(e) => setMessageInput(e.target.value)}
-                            placeholder="Type a message..."
-                            size="small"
-                        />
-                        <Button type="submit" variant="contained">Send</Button>
-                    </form>
-                </Paper>
+                <ChatPanel
+                    messages={messages}
+                    messageInput={messageInput}
+                    onMessageInputChange={setMessageInput}
+                    onSendMessage={sendMessage}
+                    sx={{ width: '75%' }}
+                />
             </Box>
 
             {error && (
