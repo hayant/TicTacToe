@@ -58,13 +58,13 @@ Gomoku/
 │   │   ├── Game/          # Game logic
 │   │   ├── Login/         # Authentication
 │   │   └── SignalR/       # Real-time multiplayer hub
-│   ├── scripts/           # React frontend source
+│   ├── ClientApp/         # React frontend source
 │   └── wwwroot/           # Compiled frontend assets
 ├── Gomoku.Data/        # Data access layer
 │   ├── DataAccess/        # Database operations
+│   ├── Migrations/        # Entity Framework migrations
 │   └── Models/            # Data models
-├── Gomoku.Tests/       # xUnit test project (AI engine)
-└── Migrations/            # Entity Framework migrations
+└── Gomoku.Tests/       # xUnit test project (AI engine)
 ```
 
 ## Getting Started
@@ -97,7 +97,7 @@ Gomoku/
 
 4. **Build the frontend** (in a separate terminal)
    ```bash
-   cd Gomoku/scripts
+   cd Gomoku/ClientApp
    npm install
    npm run build
    ```
@@ -120,7 +120,7 @@ dotnet run --launch-profile http        # http://localhost:5296
 
 **Terminal 2 — frontend** (rebuild the bundles into `wwwroot`)
 ```bash
-cd Gomoku/scripts
+cd Gomoku/ClientApp
 npx webpack --watch                     # rebuilds on every change
 ```
 Use `npm run build` instead for a one-off build. Then browse to the backend URL

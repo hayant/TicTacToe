@@ -2,16 +2,16 @@
 
 # ---- Stage 1: build the React / TypeScript frontend ----
 FROM node:20-alpine AS frontend
-WORKDIR /src/Gomoku/scripts
+WORKDIR /src/Gomoku/ClientApp
 # Build identity baked into the bundle (CI passes the run number + commit sha).
 ARG BUILD_NUMBER=dev
 ARG GIT_SHA=local
 ENV BUILD_NUMBER=$BUILD_NUMBER
 ENV GIT_SHA=$GIT_SHA
 # Install dependencies first for better layer caching
-COPY Gomoku/scripts/package.json Gomoku/scripts/package-lock.json ./
+COPY Gomoku/ClientApp/package.json Gomoku/ClientApp/package-lock.json ./
 RUN npm ci
-COPY Gomoku/scripts/ ./
+COPY Gomoku/ClientApp/ ./
 # Webpack emits the bundle into /src/Gomoku/wwwroot (see output path in webpack.config.js)
 RUN npm run build
 

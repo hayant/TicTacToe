@@ -9,11 +9,11 @@ using Gomoku.Data;
 
 #nullable disable
 
-namespace Gomoku.Migrations
+namespace Gomoku.Data.Migrations
 {
     [DbContext(typeof(GomokuDbContext))]
-    [Migration("20251013194154_UpdateUser")]
-    partial class UpdateUser
+    [Migration("20251022074403_AddPasswordSaltToUser")]
+    partial class AddPasswordSaltToUser
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -42,6 +42,11 @@ namespace Gomoku.Migrations
                         .HasColumnType("nvarchar(255)");
 
                     b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("PasswordSalt")
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");

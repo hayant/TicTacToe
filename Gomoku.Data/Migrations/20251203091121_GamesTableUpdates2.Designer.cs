@@ -9,11 +9,11 @@ using Gomoku.Data;
 
 #nullable disable
 
-namespace Gomoku.Migrations
+namespace Gomoku.Data.Migrations
 {
     [DbContext(typeof(GomokuDbContext))]
-    [Migration("20251209094308_UpdateGameTurnsTable")]
-    partial class UpdateGameTurnsTable
+    [Migration("20251203091121_GamesTableUpdates2")]
+    partial class GamesTableUpdates2
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -74,7 +74,7 @@ namespace Gomoku.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<DateTimeOffset>("Duration")
+                    b.Property<DateTimeOffset>("EndTime")
                         .HasColumnType("datetimeoffset");
 
                     b.Property<int>("GameId")
@@ -85,6 +85,9 @@ namespace Gomoku.Migrations
 
                     b.Property<int>("PosY")
                         .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("StartTime")
+                        .HasColumnType("datetimeoffset");
 
                     b.Property<int>("TurnNumber")
                         .HasColumnType("int");

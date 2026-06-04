@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Gomoku.Migrations
+namespace Gomoku.Data.Migrations
 {
     /// <inheritdoc />
     public partial class GamesTableUpdates : Migration

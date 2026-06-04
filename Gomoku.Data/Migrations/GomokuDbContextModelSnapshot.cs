@@ -3,20 +3,17 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Gomoku.Data;
 
 #nullable disable
 
-namespace Gomoku.Migrations
+namespace Gomoku.Data.Migrations
 {
     [DbContext(typeof(GomokuDbContext))]
-    [Migration("20251103093953_AddGameAndGameTurnTables")]
-    partial class AddGameAndGameTurnTables
+    partial class GomokuDbContextModelSnapshot : ModelSnapshot
     {
-        /// <inheritdoc />
-        protected override void BuildTargetModel(ModelBuilder modelBuilder)
+        protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -33,10 +30,10 @@ namespace Gomoku.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("Difficulty")
+                    b.Property<int?>("Difficulty")
                         .HasColumnType("int");
 
-                    b.Property<DateTimeOffset>("EndTime")
+                    b.Property<DateTimeOffset?>("EndTime")
                         .HasColumnType("datetimeoffset");
 
                     b.Property<int>("GridSizeX")
@@ -47,9 +44,6 @@ namespace Gomoku.Migrations
 
                     b.Property<DateTimeOffset>("StartTime")
                         .HasColumnType("datetimeoffset");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
 
                     b.Property<int>("Type")
                         .HasColumnType("int");
@@ -77,8 +71,8 @@ namespace Gomoku.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<DateTimeOffset>("EndTime")
-                        .HasColumnType("datetimeoffset");
+                    b.Property<long>("Duration")
+                        .HasColumnType("bigint");
 
                     b.Property<int>("GameId")
                         .HasColumnType("int");
@@ -88,9 +82,6 @@ namespace Gomoku.Migrations
 
                     b.Property<int>("PosY")
                         .HasColumnType("int");
-
-                    b.Property<DateTimeOffset>("StartTime")
-                        .HasColumnType("datetimeoffset");
 
                     b.Property<int>("TurnNumber")
                         .HasColumnType("int");
