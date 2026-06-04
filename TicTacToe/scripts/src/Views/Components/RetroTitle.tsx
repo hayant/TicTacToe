@@ -6,7 +6,7 @@ type RetroTitleProps = {
     align?: "left" | "center" | "right";
 };
 
-// Neon "TIC TAC TOE" logo: Press Start 2P with layered cyan/magenta glow.
+// Neon "GOMOKU" logo: Press Start 2P with layered cyan/magenta glow.
 const RetroTitle = ({ fontSize = "28px", align = "center" }: RetroTitleProps) => (
     <Box
         component="h1"
@@ -25,7 +25,7 @@ const RetroTitle = ({ fontSize = "28px", align = "center" }: RetroTitleProps) =>
                 3px 3px 0 rgba(255, 42, 109, 0.85)`,
         }}
     >
-        Tic&nbsp;Tac&nbsp;Toe
+        Gomoku
     </Box>
 );
 
