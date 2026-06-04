@@ -94,6 +94,9 @@ jobs:
         with:
           context: .
           push: true
+          build-args: |
+            BUILD_NUMBER=${{ github.run_number }}
+            GIT_SHA=${{ github.sha }}
           tags: |
             ${{ steps.img.outputs.name }}:latest
             ${{ steps.img.outputs.name }}:${{ github.sha }}
