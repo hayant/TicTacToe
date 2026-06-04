@@ -606,7 +606,7 @@ export default function GameView() {
                                 textShadow: "0 0 8px rgba(5, 217, 232, 0.8), 2px 2px 0 rgba(255, 42, 109, 0.85)",
                             }}
                         >
-                            TicTacToe
+                            Gomoku
                         </Typography>
 
                         <Box sx={{ flexGrow: 1 }} />
