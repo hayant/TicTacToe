@@ -2,7 +2,7 @@
 
 #nullable disable
 
-namespace Gomoku.Migrations
+namespace Gomoku.Data.Migrations
 {
     /// <inheritdoc />
     public partial class UpdateUser : Migration

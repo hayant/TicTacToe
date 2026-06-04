@@ -3,7 +3,7 @@
     
 2. Generate migration files in solution folder:
     dotnet ef migrations add AddGameAndGameTurnTables \
-      --project Gomoku \
+      --project Gomoku.Data \
       --startup-project Gomoku \
       --context Gomoku.Data.GomokuDbContext
       

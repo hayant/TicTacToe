@@ -15,8 +15,7 @@ var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 builder.Services.AddDbContext<GomokuDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString(
-            "DefaultConnection"),
-            b => b.MigrationsAssembly("Gomoku")));
+            "DefaultConnection")));
 
 // Services
 builder.Services.AddScoped<UserDataAccess>();
