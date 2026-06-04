@@ -7,7 +7,7 @@
 **/node_modules
 
 # Test project (not needed in the runtime image)
-TicTacToe.Tests
+Gomoku.Tests
 
 # VCS / IDE / OS
 .git

@@ -1,6 +1,6 @@
-# TicTacToe Game
+# Gomoku Game
 
-A modern, full-stack TicTacToe game application featuring single-player AI opponents and real-time multiplayer gameplay. Built with ASP.NET Core and React, this application provides an engaging gaming experience with multiple game modes and difficulty levels. Additionally, this project serves as an AI development practicing platform, offering opportunities to experiment with and improve AI algorithms, game logic, and full-stack development patterns.
+A modern, full-stack Gomoku game application featuring single-player AI opponents and real-time multiplayer gameplay. Built with ASP.NET Core and React, this application provides an engaging gaming experience with multiple game modes and difficulty levels. Additionally, this project serves as an AI development practicing platform, offering opportunities to experiment with and improve AI algorithms, game logic, and full-stack development patterns.
 
 ## Features
 
@@ -51,8 +51,8 @@ The AI opponent uses advanced algorithms including:
 ## Project Structure
 
 ```
-TicTacToe/
-├── TicTacToe/              # Main web application
+Gomoku/
+├── Gomoku/              # Main web application
 │   ├── Backend/            # Backend logic
 │   │   ├── AI/            # AI opponent implementation
 │   │   ├── Game/          # Game logic
@@ -60,10 +60,10 @@ TicTacToe/
 │   │   └── SignalR/       # Real-time multiplayer hub
 │   ├── scripts/           # React frontend source
 │   └── wwwroot/           # Compiled frontend assets
-├── TicTacToe.Data/        # Data access layer
+├── Gomoku.Data/        # Data access layer
 │   ├── DataAccess/        # Database operations
 │   └── Models/            # Data models
-├── TicTacToe.Tests/       # xUnit test project (AI engine)
+├── Gomoku.Tests/       # xUnit test project (AI engine)
 └── Migrations/            # Entity Framework migrations
 ```
 
@@ -79,7 +79,7 @@ TicTacToe/
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd TicTacToe
+   cd Gomoku
    ```
 
 2. **Configure the database connection**
@@ -88,7 +88,7 @@ TicTacToe/
 
 3. **Build and run the backend**
    ```bash
-   cd TicTacToe
+   cd Gomoku
    dotnet restore
    dotnet build
    dotnet run --launch-profile http   # serves at http://localhost:5296
@@ -97,7 +97,7 @@ TicTacToe/
 
 4. **Build the frontend** (in a separate terminal)
    ```bash
-   cd TicTacToe/scripts
+   cd Gomoku/scripts
    npm install
    npm run build
    ```
@@ -114,13 +114,13 @@ dev server. To run the two parts separately from the terminal, use two terminals
 
 **Terminal 1 — backend**
 ```bash
-cd TicTacToe
+cd Gomoku
 dotnet run --launch-profile http        # http://localhost:5296
 ```
 
 **Terminal 2 — frontend** (rebuild the bundles into `wwwroot`)
 ```bash
-cd TicTacToe/scripts
+cd Gomoku/scripts
 npx webpack --watch                     # rebuilds on every change
 ```
 Use `npm run build` instead for a one-off build. Then browse to the backend URL
@@ -131,7 +131,7 @@ Use `npm run build` instead for a one-off build. Then browse to the backend URL
 
 ## Testing
 
-Unit tests for the AI engine live in `TicTacToe.Tests` (xUnit). They cover taking an immediate
+Unit tests for the AI engine live in `Gomoku.Tests` (xUnit). They cover taking an immediate
 win, blocking the opponent's immediate win, board immutability after a search (Apply/Undo and
 Zobrist hash stability), deterministic results across repeated calls, and graceful behavior under a
 tiny time budget.
@@ -149,19 +149,19 @@ bundles the frontend, a .NET SDK stage publishes the backend (embedding the bund
 
 ```bash
 # Build the image
-docker build -t tictactoe:local .
+docker build -t gomoku:local .
 
 # Run it (provide a SQL Server connection string; the app migrates on startup)
 docker run -p 8080:8080 \
   -e "ConnectionStrings__DefaultConnection=<your connection string>" \
-  tictactoe:local
+  gomoku:local
 ```
 
 The app listens on port 8080 inside the container.
 
 ## Continuous Integration / Deployment
 
-A GitHub Actions workflow (`.github/workflows/main_tictactoe.yml`) runs three jobs:
+A GitHub Actions workflow (`.github/workflows/main_gomoku.yml`) runs three jobs:
 
 1. **build-test** — builds the frontend and backend and runs the test suite (also on pull requests).
 2. **docker** — builds the image and pushes it to GitHub Container Registry

@@ -41,7 +41,7 @@ ScaffoldingReadMe.txt
 *~
 CodeCoverage/
 .idea/
-TicTacToe/wwwroot
+Gomoku/wwwroot
 
 # MSBuild Binary and Structured Log
 *.binlog
@@ -56,7 +56,7 @@ TestResult.xml
 nunit-*.xml
 
 # node_modules
-TicTacToe/node_modules
+Gomoku/node_modules
 
-TicTacToe.sln.DotSettings.user
+Gomoku.sln.DotSettings.user
 .DS_Store
