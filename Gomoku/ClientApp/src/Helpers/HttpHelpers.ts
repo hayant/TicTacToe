@@ -1,3 +1,5 @@
+import { RequestActivity } from "./RequestActivity";
+
 export class HttpHelpers {
     private constructor() {}
 
@@ -37,45 +39,53 @@ export class HttpHelpers {
             }
         }
 
-        const response = await fetch(uri, {
-            method,
-            body: requestBody,
-            credentials,
-            headers
-        });
+        // Track this request so the UI can show a global loading spinner while
+        // it is in flight. The finally block guarantees the counter is released
+        // whether the request succeeds, fails, or the network call rejects.
+        RequestActivity.begin();
+        try {
+            const response = await fetch(uri, {
+                method,
+                body: requestBody,
+                credentials,
+                headers
+            });
 
-        // Helper to safely parse JSON or fallback to text
-        const parseBody = async () => {
-            const contentType = response.headers.get("Content-Type") ?? "";
-            if (response.status === 204 || contentType === "") {
-                return undefined as unknown as T;
-            }
-            if (contentType.includes("application/json")) {
-                return (await response.json()) as T;
-            }
-            // Non-JSON body -> return text
-            return (await response.text()) as unknown as T;
-        };
-
-        if (!response.ok) {
-            // Compute a useful message inside try/catch but do NOT throw there
-            let message = `${response.status}: ${response.statusText}`;
-            try {
-                const ct = response.headers.get("Content-Type") ?? "";
-                if (ct.includes("application/json")) {
-                    const obj = await response.json();
-                    message = typeof obj === "string" ? obj : JSON.stringify(obj);
-                } else {
-                    const text = await response.text();
-                    if (text) message = text;
+            // Helper to safely parse JSON or fallback to text
+            const parseBody = async () => {
+                const contentType = response.headers.get("Content-Type") ?? "";
+                if (response.status === 204 || contentType === "") {
+                    return undefined as unknown as T;
                 }
-            } catch {
-                // parsing failed — keep the default message
+                if (contentType.includes("application/json")) {
+                    return (await response.json()) as T;
+                }
+                // Non-JSON body -> return text
+                return (await response.text()) as unknown as T;
+            };
+
+            if (!response.ok) {
+                // Compute a useful message inside try/catch but do NOT throw there
+                let message = `${response.status}: ${response.statusText}`;
+                try {
+                    const ct = response.headers.get("Content-Type") ?? "";
+                    if (ct.includes("application/json")) {
+                        const obj = await response.json();
+                        message = typeof obj === "string" ? obj : JSON.stringify(obj);
+                    } else {
+                        const text = await response.text();
+                        if (text) message = text;
+                    }
+                } catch {
+                    // parsing failed — keep the default message
+                }
+
+                throw new Error(message !== "" ? message : `${response.status}: ${response.statusText}`);
             }
 
-            throw new Error(message !== "" ? message : `${response.status}: ${response.statusText}`);
+            return await parseBody();
+        } finally {
+            RequestActivity.end();
         }
-
-        return await parseBody();
     }
 }
