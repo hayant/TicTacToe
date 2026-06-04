@@ -3,6 +3,7 @@ import {HttpHelpers} from "../../Helpers/HttpHelpers";
 import {useNavigate} from "react-router";
 import { Button, TextField, Box, Stack, Typography, Paper } from "@mui/material";
 import {LoginModel} from "../../Data/DataObjects";
+import RetroTitle from "../Components/RetroTitle";
 
 const LoginForm = () => {
     const navigate = useNavigate();
@@ -79,7 +80,6 @@ const LoginForm = () => {
                     justifyContent: "center",
                     alignItems: "center",
                     minHeight: "100vh",
-                    backgroundColor: "#f5f5f5",
                 }}
             >
                 <div>
@@ -92,7 +92,7 @@ const LoginForm = () => {
                             borderRadius: 3,
                         }}
                     >
-                        <h1 style={{fontFamily: "fantasy", fontSize: "42px"}}>Tic Tac Toe</h1>
+                        <RetroTitle fontSize="26px" />
                     </Paper>
                     <Paper
                         elevation={3}
@@ -130,7 +130,7 @@ const LoginForm = () => {
                                     minHeight: 40,
                                     width: "100%",
                                     fontSize: "80%",
-                                    color: "#f00",
+                                    color: "error.main",
                                 }}
                             >
                                 {error}
@@ -169,7 +169,6 @@ const LoginForm = () => {
                     justifyContent: "center",
                     alignItems: "center",
                     minHeight: "100vh",
-                    backgroundColor: "#f5f5f5",
                 }}
             >
                 <div>
@@ -182,7 +181,7 @@ const LoginForm = () => {
                             borderRadius: 3,
                         }}
                     >
-                        <h1 style={{fontFamily: "fantasy", fontSize: "42px"}}>Tic Tac Toe</h1>
+                        <RetroTitle fontSize="26px" />
                     </Paper>
                     <Paper
                         elevation={3}
