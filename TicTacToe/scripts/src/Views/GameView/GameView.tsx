@@ -592,14 +592,20 @@ export default function GameView() {
                 <AppBar
                     position="static"
                     sx={{
-                        backgroundColor: "#1976d2", // default MUI blue
-                        // width: 500,
                         margin: "20px auto", // centers horizontally
-                        borderRadius: 2,
                     }}
                 >
                     <Toolbar>
-                        <Typography variant="h6" component="div" fontFamily={"fantasy"} fontSize="24px">
+                        <Typography
+                            variant="h6"
+                            component="div"
+                            sx={{
+                                fontFamily: '"Press Start 2P", monospace',
+                                fontSize: "14px",
+                                color: "#05d9e8",
+                                textShadow: "0 0 8px rgba(5, 217, 232, 0.8), 2px 2px 0 rgba(255, 42, 109, 0.85)",
+                            }}
+                        >
                             TicTacToe
                         </Typography>
 
@@ -656,7 +662,8 @@ export default function GameView() {
                     // justifyContent="center"
                     sx={{
                         padding: "2px",
-                        color: error && error.includes("Waiting") ? "#1976d2" : "#f00",
+                        color: error && error.includes("Waiting") ? "primary.main" : "error.main",
+                        textShadow: error ? "0 0 8px currentColor" : "none",
                         width: "100%",
                         textAlign: "center",
                     }}

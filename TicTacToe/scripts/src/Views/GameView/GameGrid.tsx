@@ -5,6 +5,12 @@ import {CellValue} from "../../Data/CellValue";
 
 const cellSize = 30;
 
+const NEON_CYAN = "#05d9e8";
+const NEON_MAGENTA = "#ff2a6d";
+
+const markColor = (mark: string | null | undefined) =>
+    mark === "X" ? NEON_MAGENTA : NEON_CYAN;
+
 type CellProps = {
     row: number;
     col: number;
@@ -73,11 +79,35 @@ const GameGrid = ({ size = 10, values, onCellClick }: GridProps) => {
                                 fontSize: "1.5rem",
                                 padding: 0,
                                 minWidth: 0,
-                                backgroundColor: val?.latest ? "#bbbbbb" : "#ffffff"
+                                borderRadius: 0,
+                                borderColor: "rgba(5, 217, 232, 0.35)",
+                                color: markColor(val?.mark),
+                                backgroundColor: val?.latest
+                                    ? "rgba(255, 42, 109, 0.18)"
+                                    : "rgba(13, 2, 33, 0.55)",
+                                boxShadow: val?.latest
+                                    ? `inset 0 0 10px ${NEON_MAGENTA}`
+                                    : "none",
+                                "&:hover": {
+                                    borderColor: NEON_CYAN,
+                                    backgroundColor: "rgba(5, 217, 232, 0.12)",
+                                    boxShadow: `inset 0 0 8px rgba(5, 217, 232, 0.6)`,
+                                },
                             }}
                             onClick={() => onCellClick(r, c)}
                         >
-                            <Typography variant="h5" component="span" fontSize="70%">
+                            <Typography
+                                variant="h5"
+                                component="span"
+                                fontSize="80%"
+                                sx={{
+                                    fontWeight: 700,
+                                    color: markColor(val?.mark),
+                                    textShadow: val?.mark
+                                        ? `0 0 8px ${markColor(val?.mark)}`
+                                        : "none",
+                                }}
+                            >
                                 {val?.mark ?? ""}
                             </Typography>
                         </Button>
