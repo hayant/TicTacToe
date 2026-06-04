@@ -60,6 +60,17 @@ const LoginForm = () => {
             .catch(err => setError(err.message));
     }
     
+    const versionFooter = (
+        <Typography
+            variant="caption"
+            align="center"
+            display="block"
+            sx={{ mt: 2, color: "text.secondary" }}
+        >
+            {__APP_VERSION__}
+        </Typography>
+    );
+
     const loginForm = () => {
         return (
             <Box
@@ -144,6 +155,7 @@ const LoginForm = () => {
                             </Button>
                         </Stack>
                     </Paper>
+                    {versionFooter}
                 </div>
             </Box>
         );
@@ -230,6 +242,7 @@ const LoginForm = () => {
                             </Button>
                         </Stack>
                     </Paper>
+                    {versionFooter}
                 </div>
             </Box>
         );

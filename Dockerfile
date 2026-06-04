@@ -3,6 +3,11 @@
 # ---- Stage 1: build the React / TypeScript frontend ----
 FROM node:20-alpine AS frontend
 WORKDIR /src/TicTacToe/scripts
+# Build identity baked into the bundle (CI passes the run number + commit sha).
+ARG BUILD_NUMBER=dev
+ARG GIT_SHA=local
+ENV BUILD_NUMBER=$BUILD_NUMBER
+ENV GIT_SHA=$GIT_SHA
 # Install dependencies first for better layer caching
 COPY TicTacToe/scripts/package.json TicTacToe/scripts/package-lock.json ./
 RUN npm ci
