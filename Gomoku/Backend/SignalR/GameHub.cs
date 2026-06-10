@@ -208,7 +208,7 @@ public class GameHub : Hub
         int gameId;
         bool isContinuing = continueGameId.HasValue;
 
-        if (isContinuing)
+        if (continueGameId.HasValue)
         {
             // Continue existing game
             gameId = continueGameId.Value;
