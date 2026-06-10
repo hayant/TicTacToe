@@ -69,13 +69,20 @@ const theme = createTheme({
                     pointerEvents: "none",
                     zIndex: 0,
                     backgroundImage: `
-                        repeating-linear-gradient(to right, rgba(5, 217, 232, 0.45) 0 1px, transparent 1px 80px),
-                        repeating-linear-gradient(to bottom, rgba(5, 217, 232, 0.45) 0 1px, transparent 1px 80px)`,
-                    backgroundPosition: "center bottom",
+                        repeating-linear-gradient(to right, rgba(5, 217, 232, 0.45) 0 2px, transparent 1px 80px),
+                        repeating-linear-gradient(to bottom, rgba(5, 217, 232, 0.45) 0 2px, transparent 1px 80px)`,
                     transform: "perspective(40vh) rotateX(62deg)",
                     transformOrigin: "center bottom",
                     maskImage: "linear-gradient(to bottom, transparent, #000 60%)",
                     WebkitMaskImage: "linear-gradient(to bottom, transparent, #000 60%)",
+                    "@media (prefers-reduced-motion: no-preference)": {
+                        animation: "gridScroll 1.6s linear infinite",
+                    },
+                },
+                // Scroll the pattern by exactly one 80px tile for a seamless loop
+                "@keyframes gridScroll": {
+                    from: { backgroundPosition: "center 0px" },
+                    to: { backgroundPosition: "center 80px" },
                 },
                 // Keep app content above the grid floor
                 "#root": {

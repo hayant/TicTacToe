@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "gomoku-http",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "Gomoku", "--launch-profile", "http", "--", "--urls", "http://localhost:5297"],
+      "port": 5297,
+      "autoPort": false
+    }
+  ]
+}
