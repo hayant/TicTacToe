@@ -7,7 +7,8 @@ const pkg = require("./package.json");
 // supplied by CI (GitHub run number + commit sha); local builds fall back to dev/local.
 const buildNumber = process.env.BUILD_NUMBER || "dev";
 const shortSha = (process.env.GIT_SHA || "local").slice(0, 7);
-const appVersion = `v${pkg.version} · build ${buildNumber} · ${shortSha}`;
+const buildTime = new Date().toISOString().slice(0, 16).replace("T", " ") + " UTC";
+const appVersion = `v${pkg.version} · build ${buildNumber} · ${shortSha} · ${buildTime}`;
 
 // Single-entry SPA: one bundle served from wwwroot root. The React Router app
 // (src/Views/MainMenu/App.tsx) handles the login view and all /app* routes.
