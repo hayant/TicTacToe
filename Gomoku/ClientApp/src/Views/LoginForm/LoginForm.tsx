@@ -13,7 +13,9 @@ const LoginForm = () => {
     const [error, setError] = React.useState("");
     const [showLoginForm, setShowLoginForm] = React.useState(true);
     
-    const handleSubmit = () => {
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+
         if (username.length === 0) {
             setError("Username cannot be empty");
             return;
@@ -35,7 +37,9 @@ const LoginForm = () => {
             .catch(err => setError(err.message));
     }
 
-    const handleRegister = () => {
+    const handleRegister = (e: React.FormEvent) => {
+        e.preventDefault();
+
         if (username.length === 0) {
             setError("Username cannot be empty");
             return;
@@ -106,6 +110,7 @@ const LoginForm = () => {
                         <Typography variant="h5" align="center" gutterBottom>
                             Login
                         </Typography>
+                        <form onSubmit={handleSubmit} noValidate>
                         <Stack spacing={2}>
                             <TextField
                                 label="Username"
@@ -140,12 +145,12 @@ const LoginForm = () => {
                                 variant="contained"
                                 size="large"
                                 fullWidth
-                                onClick={handleSubmit}
                             >
                                 Log In
                             </Button>
 
                             <Button
+                                type="button"
                                 variant="outlined"
                                 size="large"
                                 fullWidth
@@ -154,6 +159,7 @@ const LoginForm = () => {
                                 Sign Up
                             </Button>
                         </Stack>
+                        </form>
                     </Paper>
                     {versionFooter}
                 </div>
@@ -196,6 +202,7 @@ const LoginForm = () => {
                             Sign Up
                         </Typography>
 
+                        <form onSubmit={handleRegister} noValidate>
                         <Stack spacing={2}>
                             <TextField
                                 label="Username"
@@ -226,12 +233,12 @@ const LoginForm = () => {
                                 variant="contained"
                                 size="large"
                                 fullWidth
-                                onClick={handleRegister}
                             >
                                 Sign Up
                             </Button>
 
                             <Button
+                                type="button"
                                 variant="outlined"
                                 size="large"
                                 fullWidth
@@ -240,6 +247,7 @@ const LoginForm = () => {
                                 Back to Login
                             </Button>
                         </Stack>
+                        </form>
                     </Paper>
                     {versionFooter}
                 </div>
