@@ -65,6 +65,11 @@ const LoginForm = () => {
             .catch(err => setError(err.message));
     }
     
+    const toggleForm = (showLogin: boolean) => {
+        setError("");
+        setShowLoginForm(showLogin);
+    }
+
     const versionFooter = (
         <Typography
             variant="caption"
@@ -154,7 +159,7 @@ const LoginForm = () => {
                                 variant="outlined"
                                 size="large"
                                 fullWidth
-                                onClick={() => setShowLoginForm(false)}
+                                onClick={() => toggleForm(false)}
                             >
                                 Sign Up
                             </Button>
@@ -228,6 +233,18 @@ const LoginForm = () => {
                                 required
                                 onChange={(e) => setPassword2(e.target.value)}
                             />
+                            <Typography
+                                align="center"
+                                gutterBottom
+                                sx={{
+                                    minHeight: 40,
+                                    width: "100%",
+                                    fontSize: "80%",
+                                    color: "error.main",
+                                }}
+                            >
+                                {error}
+                            </Typography>
                             <Button
                                 type="submit"
                                 variant="contained"
@@ -242,7 +259,7 @@ const LoginForm = () => {
                                 variant="outlined"
                                 size="large"
                                 fullWidth
-                                onClick={() => setShowLoginForm(true)}
+                                onClick={() => toggleForm(true)}
                             >
                                 Back to Login
                             </Button>
