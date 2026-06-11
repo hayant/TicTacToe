@@ -2,6 +2,20 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Issue / PR workflow
+
+When asked to work on a GitHub issue, follow this flow:
+
+1. Create a feature branch off `main` (e.g. `issue-<number>-short-description`). **Never commit
+   directly to `main`** — it is protected (PRs, a passing status check, and signed commits are
+   required); do not bypass these rules even if the push would succeed.
+2. Implement the change and verify it (build, tests, and browser verification for UI changes).
+3. Show the changes to the user and **wait for their review before committing**.
+4. After approval: commit, push the branch, and open a PR that references the issue
+   (`Fixes #<number>` in the PR body so the merge auto-closes it).
+5. Let the user merge the PR (or merge only when they explicitly ask), and confirm the issue
+   closed afterwards.
+
 ## Commands
 
 ### Backend (.NET 10)
