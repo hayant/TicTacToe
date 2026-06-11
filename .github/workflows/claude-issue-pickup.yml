@@ -1,0 +1,167 @@
+# Let Claude automatically pick up issues from the project board (issue #11).
+#
+# An issue is picked up when ALL of the following are true:
+#   - the issue is OPEN and its title starts with "Claude: "
+#   - its Status on the linked GitHub Project (v2) board is "Ready"
+#   - it does not yet have the "claude-working" label (the pickup marker)
+#
+# GitHub Actions has no native trigger for Projects v2 status changes, so this
+# workflow polls the board on a schedule instead. One issue is picked up per
+# run (oldest first). When picked up, the issue gets the "claude-working" label
+# and a comment, then Claude implements it and opens a PR with "Fixes #<n>" so
+# the issue closes when the PR merges. If a run fails, remove the
+# "claude-working" label to make the issue eligible again.
+#
+# Required configuration (GitHub repo settings):
+#   Secrets:
+#     ANTHROPIC_API_KEY  - API key used by claude-code-action
+#     PROJECT_TOKEN      - classic PAT with "repo" + "read:project" scopes.
+#                          Needed because the default GITHUB_TOKEN cannot read
+#                          Projects v2 status fields.
+#   The Claude GitHub App must be installed on this repository
+#   (https://github.com/apps/claude) so the action can push branches and open
+#   PRs; run "/install-github-app" from Claude Code to set it up.
+
+name: Claude auto pickup of Ready issues
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+# Never let two runs race for the same issue.
+concurrency:
+  group: claude-issue-pickup
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  find-issue:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    outputs:
+      number: ${{ steps.pick.outputs.number }}
+      title: ${{ steps.pick.outputs.title }}
+    steps:
+      - name: 'Find oldest Ready issue titled "Claude: ..."'
+        id: pick
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+        run: |
+          issue=$(gh api graphql \
+            -f owner='${{ github.repository_owner }}' \
+            -f repo="${GITHUB_REPOSITORY#*/}" \
+            -f query='
+              query($owner: String!, $repo: String!) {
+                repository(owner: $owner, name: $repo) {
+                  issues(states: OPEN, first: 100, orderBy: {field: CREATED_AT, direction: ASC}) {
+                    nodes {
+                      number
+                      title
+                      labels(first: 20) { nodes { name } }
+                      projectItems(first: 10) {
+                        nodes {
+                          fieldValueByName(name: "Status") {
+                            ... on ProjectV2ItemFieldSingleSelectValue { name }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }' \
+            --jq '
+              .data.repository.issues.nodes
+              | map(select(
+                  (.title | startswith("Claude: "))
+                  and ((.labels.nodes | map(.name) | index("claude-working")) | not)
+                  and ([.projectItems.nodes[].fieldValueByName?.name // empty] | index("Ready"))
+                ))
+              | .[0] // empty')
+
+          if [ -z "$issue" ]; then
+            echo "No eligible issue found."
+            exit 0
+          fi
+
+          number=$(echo "$issue" | jq -r '.number')
+          title=$(echo "$issue" | jq -r '.title')
+          echo "Picking up issue #$number: $title"
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+          {
+            echo "title<<TITLE_EOF"
+            echo "$title"
+            echo "TITLE_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Mark issue as picked up
+        if: steps.pick.outputs.number != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh label create claude-working \
+            --description "Claude is working on this issue" \
+            --color FBCA04 || true
+          gh issue edit '${{ steps.pick.outputs.number }}' --add-label claude-working
+          gh issue comment '${{ steps.pick.outputs.number }}' \
+            --body "🤖 Claude picked up this issue from the Ready lane and started working on it. A pull request will follow."
+
+  implement:
+    needs: find-issue
+    if: needs.find-issue.outputs.number != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      # Toolchains so Claude can build and test its changes (mirrors main_gomoku.yml).
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: Gomoku/ClientApp/package-lock.json
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.x'
+
+      - name: Implement issue with Claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            You are working in the ${{ github.repository }} repository, currently
+            checked out on the main branch.
+
+            Implement GitHub issue #${{ needs.find-issue.outputs.number }}:
+            "${{ needs.find-issue.outputs.title }}"
+
+            Steps:
+            1. Read the full issue first: gh issue view ${{ needs.find-issue.outputs.number }} --comments
+            2. Read CLAUDE.md and follow the conventions of this repository.
+            3. Create a branch named claude/issue-${{ needs.find-issue.outputs.number }}.
+            4. Implement the change. Build and test your work:
+               - dotnet build && dotnet test
+               - if you touched the frontend: npm ci and npm run build in Gomoku/ClientApp
+            5. Commit, push the branch, and open a pull request against main.
+               Include "Fixes #${{ needs.find-issue.outputs.number }}" in the PR body
+               so the issue closes automatically when the PR merges.
+
+            If the issue cannot be implemented (unclear, too large, or out of scope),
+            do not open a PR; instead comment on the issue explaining what is missing.
+          claude_args: |
+            --allowedTools "Edit,Read,Write,Glob,Grep,Bash(git:*),Bash(gh:*),Bash(dotnet:*),Bash(npm:*),Bash(npx:*)"
+            --max-turns 80
